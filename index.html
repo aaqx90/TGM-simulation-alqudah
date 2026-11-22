@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jordan Data Centre Decision Simulator</title>
+<style>
+:root{--A:#1a9641;--B:#57b847;--C:#b5d334;--D:#f3dd26;--E:#f6a623;--F:#ef6b2a;--G:#d7262b}
+html[data-theme="dark"]{--bg:#05080f;--panel:#0f1a2c;--panel2:#16233a;--glass:rgba(12,21,36,.9);--line:#26385a;--text:#eaf1fa;--muted:#9fb1c9;
+  --accent:#22d3ee;--accent2:#3b82f6;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--chip:rgba(9,17,30,.85);--shadow:0 16px 40px rgba(0,0,0,.45)}
+html[data-theme="light"]{--bg:#eef2f7;--panel:#ffffff;--panel2:#f2f6fb;--glass:rgba(255,255,255,.94);--line:#d3dce8;--text:#0f1b2d;--muted:#4f6079;
+  --accent:#0891b2;--accent2:#2563eb;--ok:#15803d;--warn:#b45309;--bad:#dc2626;--chip:rgba(255,255,255,.92);--shadow:0 16px 40px rgba(20,40,70,.18)}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 Arial,Helvetica,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.small{font-size:13px}.muted{color:var(--muted)}
+h3{font-size:16px;margin:0 0 8px}
+/* top bar */
+header.top{display:flex;align-items:center;gap:10px;padding:9px 16px;background:var(--panel);border-bottom:1px solid var(--line);z-index:30;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;color:#fff;font-weight:900;font-size:18px;flex:none}
+.brand h1{font-size:18px;margin:0;white-space:nowrap}
+.brand p{margin:0;font-size:13px;color:var(--muted);white-space:nowrap}
+.spacer{flex:1}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 13px;display:inline-flex;align-items:center;gap:7px;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent2);border-color:var(--accent2);color:#fff;font-weight:700}
+.btn.icon{padding:8px 11px;min-width:38px;justify-content:center}
+.btn[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;color:var(--accent)}
+.menu{position:relative}
+.menu-list{position:absolute;right:0;top:calc(100% + 8px);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;width:300px;box-shadow:var(--shadow);display:none;z-index:50}
+.menu-list.open{display:block}
+.menu-list .mh{font-size:12px;font-weight:700;letter-spacing:.6px;color:var(--muted);text-transform:uppercase;margin:4px 6px 6px}
+.menu-list button{display:block;width:100%;text-align:left;background:none;border:0;padding:8px 10px;border-radius:9px;font-size:14px}
+.menu-list button small{display:block;color:var(--muted);font-size:12.5px}
+.menu-list button:hover{background:var(--panel2)}
+.menu-list hr{border:0;border-top:1px solid var(--line);margin:8px 0}
+/* scenario strip */
+#scenBar{display:flex;gap:8px;align-items:stretch;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--line);z-index:29;overflow-x:auto}
+#scenBar .lab{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);align-self:center;white-space:nowrap;margin-right:2px}
+.scard{flex:1 1 0;min-width:190px;text-align:left;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:7px 12px;display:flex;flex-direction:column;gap:1px}
+.scard b{font-size:14.5px}
+.scard span{font-size:12.5px;color:var(--muted)}
+.scard:hover{border-color:var(--accent)}
+.scard[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.scard[aria-pressed="true"] b{color:var(--accent)}
+#scenBar .btn{white-space:nowrap}
+/* stage */
+#stage{position:relative;flex:1;min-height:500px;overflow:hidden}
+#cv{position:absolute;inset:0;display:block;cursor:grab;touch-action:none;outline:none}
+#cv.grab{cursor:grabbing}
+#cv:focus-visible{box-shadow:inset 0 0 0 2px var(--accent)}
+#hsLayer{position:absolute;inset:0;pointer-events:none;z-index:3}
+.hs-wrap{position:absolute;left:0;top:0;pointer-events:auto;will-change:transform}
+.hs{position:absolute;left:-16px;top:-16px;width:32px;height:32px;border:1.5px dashed rgba(255,255,255,.8);border-radius:5px;background:rgba(8,14,26,.72);display:grid;place-items:center;padding:0}
+.hs-dot{width:15px;height:15px;border-radius:50%;background:#34f5a8;box-shadow:0 0 0 0 rgba(52,245,168,.7);animation:glow 2.2s ease-out infinite}
+.hs-wrap.info .hs-dot{background:#a5b4fc}
+@keyframes glow{0%{box-shadow:0 0 0 0 rgba(52,245,168,.7)}100%{box-shadow:0 0 0 12px rgba(52,245,168,0)}}
+.hs:hover,.hs:focus-visible{border-color:var(--accent);outline:none}
+.hs-label{position:absolute;left:22px;top:-14px;background:rgba(5,10,20,.88);color:#fff;font-size:13.5px;font-weight:700;padding:5px 9px;border-radius:5px;white-space:nowrap;pointer-events:none}
+.hs-wrap.hsel .hs{border-style:solid;border-color:var(--accent)} .hs-wrap.hsel .hs-dot{background:#22d3ee}
+.hs-wrap.nolabel:not(:hover):not(.hsel) .hs-label{display:none}
+#hud{position:absolute;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;z-index:4;max-width:min(760px,60vw);pointer-events:none}
+.chip{background:var(--chip);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13.5px;backdrop-filter:blur(6px)}
+.chip.hot{color:var(--warn);border-color:var(--warn)}
+.chip.watch{border-color:var(--accent)}
+/* drawers */
+.handle{position:absolute;top:50%;z-index:6;background:var(--glass);border:1px solid var(--line);color:var(--text);padding:14px 9px;font-weight:700;font-size:14px;writing-mode:vertical-rl;backdrop-filter:blur(8px);letter-spacing:.3px}
+.handle.left{left:0;border-radius:0 12px 12px 0;transform:translateY(-50%) rotate(180deg)}
+.handle.right{right:0;border-radius:12px 0 0 12px;transform:translateY(-50%)}
+.handle:hover{color:var(--accent);border-color:var(--accent)}
+.drawer{position:absolute;top:12px;bottom:118px;z-index:7;background:var(--glass);border:1px solid var(--line);border-radius:16px;backdrop-filter:blur(12px);box-shadow:var(--shadow);display:flex;flex-direction:column;transition:transform .35s ease,opacity .35s ease;opacity:0;pointer-events:none}
+.drawer.open{opacity:1;pointer-events:auto;transform:none}
+.drawer.left{left:12px;width:min(340px,92vw);transform:translateX(-30px)}
+.drawer.right{right:12px;width:min(420px,94vw);transform:translateX(30px)}
+.drawer.left.open,.drawer.right.open{transform:none}
+.dhead{display:flex;align-items:center;gap:8px;padding:12px 14px 8px}
+.dhead h2{font-size:17px;margin:0;flex:1}
+.x{background:none;border:1px solid var(--line);border-radius:8px;width:32px;height:32px;padding:0}
+.dbody{overflow:auto;padding:4px 14px 14px;flex:1}
+/* choice groups */
+.acc{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;background:var(--panel2)}
+.acc>button{width:100%;display:flex;align-items:center;gap:10px;background:none;border:0;padding:11px 12px;text-align:left}
+.acc>button .dot{width:11px;height:11px;border-radius:50%;flex:none}
+.acc>button .ttl{font-weight:700;flex:1;font-size:15px}
+.acc>button .sum{font-size:13px;color:var(--muted)}
+.acc>button .chev{transition:transform .2s;color:var(--muted)}
+.acc.open>button .chev{transform:rotate(90deg)}
+.acc .body{display:none;padding:2px 12px 12px}
+.acc.open .body{display:block}
+.acc.open{border-color:var(--accent)}
+.ctl{margin:10px 0}
+.ctl .row{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:14px}
+.ctl .val{font-weight:700;color:var(--accent)}
+input[type=range]{width:100%;accent-color:var(--accent);height:22px}
+.seg{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1 1 45%;background:none;border:0;padding:8px 6px;font-size:13.5px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.seg.three button{flex:1 1 30%}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#04202a;font-weight:700}
+.sel{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.tog{display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer}
+.tog input{width:38px;height:22px;appearance:none;-webkit-appearance:none;background:var(--line);border-radius:999px;position:relative;cursor:pointer;flex:none;transition:.2s;margin:0}
+.tog input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.2s}
+.tog input:checked{background:var(--accent)}
+.tog input:checked::after{left:19px}
+.info{font-size:13px;color:var(--muted);border-left:3px solid var(--line);padding:4px 9px;margin-top:8px}
+/* labels */
+.labels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.lbl{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:9px}
+.lbl .hd{font-size:13.5px;font-weight:700;margin-bottom:6px;display:flex;justify-content:space-between;gap:6px}
+.lrow{display:flex;align-items:center;height:21px;margin:2px 0;position:relative}
+.arrow{height:18px;color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;padding-left:7px;clip-path:polygon(0 0,calc(100% - 9px) 0,100% 50%,calc(100% - 9px) 100%,0 100%)}
+.ptr{position:absolute;right:0;height:20px;min-width:34px;background:var(--text);color:var(--bg);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;padding:0 7px 0 13px;clip-path:polygon(9px 0,100% 0,100% 100%,9px 100%,0 50%)}
+.lbl .foot{font-size:12.5px;color:var(--muted);margin-top:5px}
+.charthd{margin:14px 0 4px}
+svg#chart{width:100%;height:auto;display:block}
+#chart text{fill:var(--muted);font-size:11px;font-family:Arial}
+.note{font-size:13px;color:var(--muted);margin-top:8px;padding:8px 10px;border:1px dashed var(--line);border-radius:10px}
+.sect{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:16px 0 6px}
+/* checks and decision */
+.check{padding:10px 0;border-top:1px solid var(--line)}
+.check .gh{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.check .gt{font-weight:700;font-size:14.5px}
+.check .gd{font-size:13.5px;color:var(--muted);margin-top:3px}
+.check .gc{margin-top:8px}
+.pill{font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px;letter-spacing:.4px;white-space:nowrap}
+.pill.pass{background:rgba(34,197,94,.16);color:var(--ok);border:1px solid rgba(34,197,94,.55)}
+.pill.watch{background:rgba(245,158,11,.16);color:var(--warn);border:1px solid rgba(245,158,11,.55)}
+.pill.fail{background:rgba(239,68,68,.16);color:var(--bad);border:1px solid rgba(239,68,68,.55)}
+.decision{margin-top:12px;border-radius:12px;padding:12px;text-align:center;font-weight:800;font-size:20px;color:#fff}
+.decision.go{background:linear-gradient(135deg,#15803d,#22c55e)}
+.decision.cond{background:linear-gradient(135deg,#b45309,#f59e0b)}
+.decision.nogo{background:linear-gradient(135deg,#b91c1c,#ef4444)}
+.decision small{display:block;font-size:13px;font-weight:600;margin-top:3px}
+.recs{margin:10px 0 0;padding-left:20px;font-size:14px}
+.recs li{margin:4px 0}
+.decide{margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel2)}
+.decide label{display:block;font-size:13px;margin:7px 0 3px;color:var(--muted)}
+.decide select,.decide textarea{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:7px}
+.decide .actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.recorded{font-size:13.5px;margin-top:8px;padding:7px 9px;border-left:3px solid var(--ok);background:rgba(34,197,94,.08);border-radius:6px}
+.err{color:var(--bad);font-size:13.5px;margin-top:6px}
+/* dock */
+#dock{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;gap:6px;align-items:stretch;background:var(--glass);border:1px solid var(--line);border-radius:14px;padding:7px;z-index:6;backdrop-filter:blur(10px);box-shadow:var(--shadow);max-width:calc(100vw - 24px)}
+.dchip{display:flex;flex-direction:column;justify-content:center;padding:3px 11px;border-radius:10px;min-width:0}
+.dchip .k{font-size:12px;color:var(--muted);white-space:nowrap}
+.dchip .v{font-size:16px;font-weight:800;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.dchip .s{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.cls{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:5px;color:#fff;font-size:14px;font-weight:800}
+.dchip.dec{color:#fff;cursor:pointer}.dchip.dec .k{color:rgba(255,255,255,.85)}
+.dchip.go{background:#16a34a}.dchip.cond{background:#d97706}.dchip.nogo{background:#dc2626}
+/* view controls & footnote */
+#viewCtl{position:absolute;right:14px;bottom:14px;display:flex;gap:6px;z-index:6;flex-wrap:wrap;justify-content:flex-end;max-width:300px}
+#viewCtl .btn{background:var(--glass);backdrop-filter:blur(8px);padding:7px 10px;font-size:13.5px}
+#foot{position:absolute;left:14px;bottom:16px;z-index:6;font-size:12.5px;color:var(--muted);display:flex;gap:10px;align-items:center;max-width:280px;flex-wrap:wrap}
+#foot button{background:none;border:0;color:var(--accent);text-decoration:underline;padding:0;font-size:12.5px}
+/* welcome */
+#welcome{position:fixed;inset:0;z-index:20;display:none;place-items:center;background:rgba(3,7,14,.6);backdrop-filter:blur(3px);padding:16px;overflow:auto}
+#welcome.open{display:grid}
+.wcard{background:var(--panel);border:1px solid var(--line);border-radius:18px;max-width:620px;width:100%;padding:26px 28px;box-shadow:var(--shadow)}
+.wcard h2{margin:0 0 12px;font-size:25px}
+.wcard p{margin:0 0 10px;font-size:15.5px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.facts div{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px}
+.facts b{display:block;font-size:17px;margin-bottom:2px}
+.wact{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.wact .btn{padding:11px 18px;font-size:15px}
+.wsrc{margin-top:12px;font-size:12.5px;color:var(--muted)}
+.wsrc button{background:none;border:0;color:var(--accent);text-decoration:underline;padding:0;font-size:12.5px}
+/* popover */
+#pop{position:fixed;z-index:60;width:min(360px,calc(100vw - 24px));background:var(--panel);border:1.5px solid var(--accent);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;display:none}
+#pop.open{display:block}
+#pop .arr{position:absolute;width:14px;height:14px;background:var(--panel);border:1.5px solid var(--accent);transform:rotate(45deg)}
+#pop h4{margin:0 0 6px;font-size:16px;padding-right:26px}
+#pop .pb{font-size:14.5px}
+#pop .pf{display:flex;align-items:center;gap:8px;margin-top:12px}
+#pop .pf .meta{font-size:12.5px;color:var(--muted);flex:1}
+#pop .px{position:absolute;right:10px;top:10px}
+#spot{position:fixed;z-index:59;border:2px solid var(--accent);border-radius:12px;box-shadow:0 0 0 5px rgba(34,211,238,.22),0 0 28px rgba(34,211,238,.45);pointer-events:none;display:none;transition:all .25s}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(3,8,18,.6);display:none;align-items:center;justify-content:center;z-index:70;padding:20px}
+.modal.open{display:flex}
+.modal-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:700px;width:100%;max-height:86vh;overflow:auto;padding:18px 20px}
+.modal-card.wide{max-width:980px;padding:0;display:flex;flex-direction:column;overflow:hidden;height:86vh}
+.modal-card.wide #mBody{display:flex;flex-direction:column;min-height:0;flex:1}
+.modal-card header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px}
+.modal-card.wide header{padding:16px 20px 6px;margin:0}
+.modal-card h3{margin:0;font-size:19px}
+.modal-card table{border-collapse:collapse;width:100%;font-size:14px}
+.modal-card td,.modal-card th{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}
+.rtabs{display:flex;gap:6px;padding:4px 20px 10px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.rtabs button{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 14px;font-size:14px;font-weight:700}
+.rtabs button[aria-selected="true"]{background:var(--accent);color:#04202a;border-color:var(--accent)}
+.rbody{overflow:auto;padding:6px 20px 20px}
+.rpane{display:none}.rpane.on{display:block}
+.rgroup{margin-top:16px}
+.rgroup h4{margin:0 0 4px;font-size:16px}
+.rgroup .why{font-size:13.5px;color:var(--muted);margin:0 0 8px}
+.src{border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin:7px 0;background:var(--panel2);font-size:14px}
+.src .used{font-size:13px;color:var(--muted);margin-top:3px}
+.src a{color:var(--accent);word-break:break-word}
+.tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.4px;padding:2px 7px;border-radius:999px;margin-right:6px;vertical-align:1px}
+.tag.off{background:rgba(59,130,246,.18);color:var(--accent2);border:1px solid rgba(59,130,246,.5)}
+.tag.res{background:rgba(34,197,94,.16);color:var(--ok);border:1px solid rgba(34,197,94,.5)}
+.tag.oth{background:rgba(148,163,184,.16);color:var(--muted);border:1px solid var(--line)}
+.types{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.type{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--panel2)}
+.type h4{margin:0 0 4px;font-size:16px}
+.type p{margin:4px 0;font-size:14px}
+.type.here{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.gl dt{font-weight:700;margin-top:10px}
+.gl dd{margin:2px 0 0 0;font-size:14px;color:var(--muted)}
+.formula{font-family:Consolas,Menlo,monospace;font-size:13.5px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 9px;margin:5px 0;color:var(--text);overflow-x:auto}
+.search{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:10px}
+#toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;opacity:0;transition:.3s;z-index:80;pointer-events:none;max-width:90vw;font-size:14px}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (max-width:1100px){.brand p{display:none}#foot{display:none}#hud{max-width:90vw;top:8px}}
+@media (max-width:820px){
+  #stage{min-height:420px}
+  header.top{gap:8px}
+  .brand h1{font-size:16px}
+  .scard{min-width:160px}
+  .drawer.left,.drawer.right{left:8px;right:8px;width:auto;bottom:168px}
+  #dock{left:8px;right:8px;transform:none;bottom:8px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:6px}
+  .dchip{padding:2px 4px;align-items:center;text-align:center}.dchip .k{font-size:10.5px;white-space:normal;line-height:1.15}.dchip .v{font-size:13px}.dchip .s{display:none}
+  .dchip.dec{grid-column:1/-1;flex-direction:row;gap:8px;justify-content:center;padding:5px}
+  #viewCtl{bottom:122px;left:8px;right:8px;max-width:none;justify-content:center;gap:4px}
+  #viewCtl .btn{padding:5px 7px;font-size:12px;min-width:0} #vLabels{display:none}
+  .brand h1{font-size:15px;white-space:normal} header.top .btn{padding:7px 10px;font-size:13px}
+  #hud .chip{font-size:12px;padding:4px 9px}
+  .facts,.types{grid-template-columns:1fr}
+  .handle{padding:10px 7px;font-size:13px}
+}
+@media (prefers-reduced-motion: reduce){.hs-dot{animation:none}.drawer{transition:none}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><div class="logo">◆</div><div><h1>Jordan Data Centre Decision Simulator</h1><p>Should Jordan approve this data centre?</p></div></div>
+  <span class="spacer"></span>
+  <button class="btn primary" id="tourBtn" title="Step-by-step walkthrough">▶ Guided tour</button>
+  <div class="menu">
+    <button class="btn" id="filesBtn" aria-haspopup="true" aria-expanded="false">⇅ Files</button>
+    <div class="menu-list" id="filesMenu" role="menu">
+      <div class="mh">Your plan</div>
+      <button data-act="save">Save my plan<small>Downloads a JSON file with your choices</small></button>
+      <button data-act="open">Open a saved plan<small>Loads a JSON file saved here</small></button>
+      <hr>
+      <div class="mh">Results</div>
+      <button data-act="csv">Download results<small>Month by month, CSV (opens in Excel)</small></button>
+      <button data-act="report">Download decision report<small>Plain text summary of the plan and decision</small></button>
+    </div>
+  </div>
+  <button class="btn" id="resBtn" title="Sources, data centre types and glossary">📚 Resources</button>
+  <button class="btn icon" id="themeBtn" title="Light or dark mode" aria-label="Switch light or dark mode">☾</button>
+</header>
+<nav id="scenBar" aria-label="Scenarios">
+  <span class="lab">Scenarios</span>
+  <div id="scenCards" style="display:flex;gap:8px;flex:1"></div>
+  <button class="btn" id="resetBtn" title="Undo your changes to this scenario">↺ Reset</button>
+</nav>
+
+<main id="stage">
+  <canvas id="cv" tabindex="0" aria-label="3D data centre campus. Drag to rotate, scroll to zoom, shift and drag to move, arrow keys to turn."></canvas>
+  <div id="hsLayer"></div>
+  <div id="hud"><span class="chip" id="siteChip"></span><span class="chip hot" id="heatChip" hidden>Very hot summer</span><span class="chip watch" id="tryChip"></span></div>
+
+  <button class="handle left" id="leftHandle" aria-controls="leftDrawer">⚙ Change the plan</button>
+  <aside class="drawer left" id="leftDrawer" aria-label="Change the plan">
+    <div class="dhead"><h2>Change the plan</h2><button class="x" id="leftClose" aria-label="Close">✕</button></div>
+    <div class="dbody"><div id="groups"></div>
+      <div class="note">Each change updates the ratings, the checks and the 3D campus straight away.</div></div>
+  </aside>
+
+  <button class="handle right" id="rightHandle" aria-controls="rightDrawer">Result and decision</button>
+  <aside class="drawer right" id="rightDrawer" aria-label="Result and decision">
+    <div class="dhead"><h2>Result and decision</h2><button class="x" id="rightClose" aria-label="Close">✕</button></div>
+    <div class="dbody">
+      <div class="labels"><div class="lbl" id="lblPUE"></div><div class="lbl" id="lblWUE"></div></div>
+      <div class="charthd"><b class="small">Energy rating by month</b></div>
+      <svg id="chart" viewBox="0 0 360 180" role="img" aria-label="Monthly energy ratio against the A to G classes"></svg>
+      <div class="note">Estimated EU rating. The EU label only covers data centres inside the EU, so a site in Jordan can only get an estimate. See Resources for the sources.</div>
+      <div class="sect">Checks</div>
+      <div id="checks"></div>
+      <div class="decision" id="decisionPill"></div>
+      <div class="sect">How to improve</div>
+      <ul class="recs" id="recs"></ul>
+      <div class="decide" id="decideForm">
+        <b>Your decision</b>
+        <label for="dDec">Decision</label><select id="dDec"><option value="go">Approve</option><option value="cond">Approve with conditions</option><option value="nogo">Reject</option></select>
+        <label for="dWhy">Reason or conditions</label><textarea id="dWhy" rows="2" maxlength="400" placeholder="For example: approve if the operator uses liquid cooling and recycled water"></textarea>
+        <div class="err" id="dErr"></div>
+        <div class="actions"><button class="btn primary" id="dSave">Record decision</button><button class="btn" id="dReport">Download report</button></div>
+        <div id="recorded"></div>
+      </div>
+    </div>
+  </aside>
+
+  <div id="viewCtl" aria-label="View controls">
+    <button class="btn icon" id="vRotL" title="Turn left" aria-label="Turn left">⟲</button>
+    <button class="btn icon" id="vRotR" title="Turn right" aria-label="Turn right">⟳</button>
+    <button class="btn icon" id="vIn" title="Zoom in" aria-label="Zoom in">＋</button>
+    <button class="btn icon" id="vOut" title="Zoom out" aria-label="Zoom out">－</button>
+    <button class="btn icon" id="vHome" title="Reset view" aria-label="Reset view">⌂</button>
+    <button class="btn" id="vXray" aria-pressed="false" title="Remove the roof to see the server racks">◫ Inside hall</button>
+    <button class="btn" id="vExplode" aria-pressed="false" title="Separate the campus into its five layers">⤢ Explode layers</button>
+    <button class="btn" id="vLabels" aria-pressed="true" title="Show or hide the labels">Labels</button>
+  </div>
+  <div id="dock" aria-live="polite"></div>
+  <div id="foot">Estimated rating, not an official EU label. <button id="footRes">Sources</button></div>
+</main>
+
+<div id="welcome">
+  <div class="wcard" role="dialog" aria-labelledby="wTitle">
+    <h2 id="wTitle">Should Jordan approve this data centre?</h2>
+    <p>A European company plans a 40 MW data centre in Amman to store EU customers' data. To win clients, it needs a good EU energy rating. Jordan has some of the least water per person in the world.</p>
+    <p><b>You sit on the approval committee.</b> Test the plan, then decide.</p>
+    <div class="facts">
+      <div><b>💧 61 m³</b>Water per person a year in Jordan</div>
+      <div><b>⚡ A to G</b>EU rating for energy and water</div>
+    </div>
+    <div class="wact"><button class="btn primary" id="wTour">▶ Start guided tour</button><button class="btn" id="wExplore">Explore on my own</button></div>
+    <div class="wsrc">Where do these facts come from? <button id="wRes">See the sources</button></div>
+  </div>
+</div>
+
+<div id="spot"></div>
+<div id="pop" role="dialog" aria-live="polite"><div class="arr"></div><button class="x px" id="popX" aria-label="Close">✕</button><h4 id="popT"></h4><div class="pb" id="popB"></div><div class="pf" id="popF"></div></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true"><div class="modal-card" id="mCard"><header><h3 id="mTitle"></h3><button class="x" id="mClose" aria-label="Close">✕</button></header><div id="mBody"></div></div></div>
+<div id="toast" role="status"></div>
+<input type="file" id="fileIn" accept=".json,application/json" hidden>
+
+<script>
+// ===================== Model: monthly energy and water of a data centre =====================
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const HOURS = [744,672,744,720,744,720,744,744,720,744,720,744];
+// Rounded monthly mean air temperature (°C) and relative humidity (%). See Resources, Climate.
+const CLIMATE = {
+  amman: { name:'Amman', db:[8,9,12,16,21,24,26,26,24,20,14,10], rh:[64,60,52,42,34,33,37,42,44,48,55,63] },
+  aqaba: { name:'Aqaba', db:[16,17,20,25,29,32,34,34,31,27,22,17], rh:[46,44,40,34,30,30,31,33,36,40,45,47] },
+  risha: { name:'Al-Risha', db:[8,10,14,19,24,28,30,30,27,22,15,10], rh:[58,52,42,30,22,18,20,22,25,32,45,56] },
+};
+// EU class limits, Delegated Regulation C(2026) 3472, Annex I
+const PUE_CLASSES = [['A',1.15],['B',1.25],['C',1.35],['D',1.5],['E',1.7],['F',1.9],['G',Infinity]];
+const WUE_CLASSES = [['A',0.1],['B',0.2],['C',0.4],['D',0.6],['E',0.8],['F',1.0],['G',Infinity]];
+const TARGET = 'C';
+function classOf(v, table){ for(const [c,lim] of table){ if(v<=lim+1e-9) return c; } return 'G'; }
+// Wet-bulb temperature from air temperature and humidity (J. Appl. Meteor. Climatol. 2011, see Resources)
+function wetBulb(T, RH){
+  return T*Math.atan(0.151977*Math.sqrt(RH+8.313659)) + Math.atan(T+RH) - Math.atan(RH-1.676331)
+    + 0.00391838*Math.pow(RH,1.5)*Math.atan(0.023101*RH) - 4.686035;
+}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const lin=(v,full,none)=> clamp((none-v)/(none-full),0,1);
+function chillerCOP(chws, condTemp){ const lift=Math.max(5,condTemp-chws); return clamp(0.38*(chws+273.15)/lift,2.0,8); }
+const BINS=(()=>{ const b=[]; let s=0; for(let z=-3;z<=3.001;z+=0.25){ const w=Math.exp(-z*z/2); b.push([z,w]); s+=w; } return b.map(([z,w])=>[z,w/s]); })();
+const SIGMA=5.5;
+// Fixed assumptions (listed in Resources)
+const FIXED={aiShare:30, supplyAir:24, upsEff:0.96, trEff:0.985, otherFrac:0.02, coc:5, elecPrice:0.10, heatwave:3.5};
+const WATER_PRICE={potable:1.00, tww:0.35, desal:1.40};
+const PER_CAPITA_M3=61;
+
+function runModel(S){
+  const clim=CLIMATE[S.site]||CLIMATE.amman, ai=FIXED.aiShare/100, chws=FIXED.supplyAir-6, coc=FIXED.coc;
+  const liquidFrac = S.mode==='dlc' ? 0.75 : 0, airFrac = 1-liquidFrac;
+  const fanPerIT = S.mode==='dlc' ? 0.03 : 0.05+0.07*ai;
+  const monthly=[]; const A={it:0,cool:0,power:0,other:0,total:0,water:0,mech:0};
+  for(let m=0;m<12;m++){
+    const db = clim.db[m] + (S.heatwave && m>=5 && m<=8 ? FIXED.heatwave : 0);
+    const wbM = wetBulb(db, clim.rh[m]);
+    let coolPerIT=0, waterPerIT=0, mechShare=0;
+    for(const [z,w] of BINS){
+      const tdb=db+z*SIGMA, twb=wbM+z*SIGMA*0.6; let mech=0, water=0, rej=0;
+      const mode = S.mode==='dlc' ? 'dry' : S.mode;
+      if(mode==='evap'){
+        const f=lin(twb,chws-5,chws-0.5), cop=chillerCOP(chws,twb+8);
+        mech+=airFrac*(1-f)/cop; rej+=airFrac*0.02;
+        water+=airFrac*(1+(1-f)/cop)*1.48*(1+1/(coc-1))+0.002;
+      } else if(mode==='dry'){
+        const f=lin(tdb,chws-7,chws-1), cop=chillerCOP(chws,tdb+14);
+        mech+=airFrac*(1-f)/cop; rej+=airFrac*(0.03+0.002*Math.max(0,tdb-20));
+      } else {
+        if(tdb<=24){ const f=lin(tdb,chws-7,chws-1), cop=chillerCOP(chws,tdb+14); mech+=airFrac*(1-f)/cop; rej+=airFrac*0.025; }
+        else { const te=tdb-0.7*(tdb-twb), f=lin(te,chws-7,chws-1), cop=chillerCOP(chws,te+14);
+          mech+=airFrac*(1-f)/cop; rej+=airFrac*0.03; water+=airFrac*(1+(1-f)/cop)*0.45*(1+1/(coc-1)); }
+      }
+      if(liquidFrac>0){ const f=lin(tdb,26,31), cop=chillerCOP(32,tdb+12); mech+=liquidFrac*(1-f)/cop; rej+=liquidFrac*0.02; }
+      const fp=airFrac*fanPerIT+0.015+liquidFrac*0.02;
+      coolPerIT+=w*(mech+rej+fp); waterPerIT+=w*(water+0.01); mechShare+=w*mech;
+    }
+    const it=S.itMW*HOURS[m], cool=it*coolPerIT, ups=it*(1/FIXED.upsEff-1), other=it*FIXED.otherFrac;
+    const pre=it+cool+ups+other, total=pre/FIXED.trEff, power=ups+(total-pre), water=it*waterPerIT; // MWh, m3 (L/kWh x MWh = m3)
+    monthly.push({m:MONTHS[m], db, wb:wbM, it, cool, power, other, total, water, pue:total/it, wue:water/it, mech:mechShare});
+    A.it+=it; A.cool+=cool; A.power+=power; A.other+=other; A.total+=total; A.water+=water; A.mech+=mechShare*HOURS[m];
+  }
+  const pue=A.total/A.it, wue=A.water/A.it;
+  const elecCost=A.total*1000*FIXED.elecPrice, waterCost=A.water*WATER_PRICE[S.waterSource];
+  return {monthly, it:A.it, cool:A.cool, power:A.power, other:A.other, total:A.total, water:A.water, mech:A.mech/8760,
+    pue, wue, pueClass:classOf(pue,PUE_CLASSES), wueClass:classOf(wue,WUE_CLASSES),
+    cost:elecCost+waterCost, elecCost, waterCost, people:A.water/PER_CAPITA_M3, climName:clim.name};
+}
+
+// ===================== 3D campus engine (canvas, no libraries) =====================
+const Engine = (() => {
+  let cv, ctx, W=800, H=600, dpr=1, hsLayer, onHotspot=()=>{};
+  const cam={yaw:-58,pitch:34,dist:270,panX:0,panY:0,inset:0}, camT={...cam};
+  let explodeT=0, explodeTarget=0, xray=false, showLabels=true, selected=null;
+  let theme='dark', P=null, st=null, hotSet=new Set();
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const LAYERS=['water','cooling','hall','power','site'];
+  const LAYER_NAME={water:'Layer 5: Water',cooling:'Layer 4: Cooling',hall:'Layer 3: Data hall',power:'Layer 2: Power',site:'Layer 1: Site, solar and wind'};
+  const LAYER_COL={water:'#0ea5e9',cooling:'#06b6d4',hall:'#3b82f6',power:'#eab308',site:'#f59e0b'};
+  const GAP=26, TGT=[70,55,0];
+  const PAL={
+    dark:{sky1:'#04070d',sky2:'#0e1a2e',platTop:'#3a3a35',platSide:'#1f2733',rock:'#1a2a40',road:'#262b33',roadLine:'rgba(255,230,160,.55)',gravel:'#4a4a46',park:'#30343b',
+      curb:'#59606b',hall:'#5a6575',roof:'#6b7482',fin:'#3e4856',louvre:'#2c3440',door:'#39424f',office:'#55667d',glass:'#5d8fc2',window:'#ffd98f',
+      metal:'#7d8ea5',ups:'#4a6488',gen:'#c9973c',genEnd:'#6f5524',stack:'#3a3f47',xfmr:'#6e7f73',fin2:'#56645a',insul:'#c9b38a',concrete:'#5e646d',
+      dry:'#8796ab',coil:'#4e5d70',pad:'#3b82c4',tower:'#a9b6c6',towerLouvre:'#6b7889',fan:'#141c28',cdu:'#14b8a6',crah:'#7a8aa0',contain:'rgba(148,180,220,.45)',
+      panel:'#2d5fd1',frame:'#8fa2b8',tankP:'#3b82f6',tankT:'#86a33f',tankD:'#14a394',tankRoof:'#9aa7b8',rackC:'#38bdf8',rackH:'#fb923c',
+      tree:'#2f7f55',trunk:'#6b4f35',mmr:'#22d3ee',turbine:'#dfe7f0',wall:'#4b5c73',fence:'#8fa0b5',shadow:'rgba(0,0,0,.33)',
+      car1:'#c2410c',car2:'#e5e7eb',car3:'#1d4ed8',car4:'#52525b',lightPool:'rgba(255,205,120,.2)',text:'#e7eef8',muted:'#9fb1c9',amb:.42,dif:.72,edge:'rgba(0,0,0,.28)'},
+    light:{sky1:'#cfdcec',sky2:'#f4f7fb',platTop:'#d9d2c0',platSide:'#a99f88',rock:'#8a9bb1',road:'#6b7280',roadLine:'rgba(255,255,255,.85)',gravel:'#b8b3a6',park:'#9ca3af',
+      curb:'#c9cfd8',hall:'#dde4ed',roof:'#c9d1dc',fin:'#aab6c5',louvre:'#8f9cad',door:'#9aa6b6',office:'#f1f5f9',glass:'#8fc1ef',window:'#ffe3a1',
+      metal:'#c2ccd8',ups:'#a8c0e2',gen:'#ecb84c',genEnd:'#a8822f',stack:'#6b7280',xfmr:'#9fb3a5',fin2:'#879a8c',insul:'#d9c49c',concrete:'#b9bec6',
+      dry:'#c7d1dd',coil:'#8d9bad',pad:'#5fa8e8',tower:'#f3f6f9',towerLouvre:'#b5c0cd',fan:'#55657a',cdu:'#2dd4bf',crah:'#b3c0d1',contain:'rgba(120,160,210,.4)',
+      panel:'#3b74e8',frame:'#7d8ea4',tankP:'#4f8ff7',tankT:'#9ab85a',tankD:'#2bbbab',tankRoof:'#d5dce5',rackC:'#7dd3fc',rackH:'#fb923c',
+      tree:'#4caf6e',trunk:'#8a6a4a',mmr:'#06b6d4',turbine:'#ffffff',wall:'#c6d1de',fence:'#6b7a8f',shadow:'rgba(40,50,70,.22)',
+      car1:'#ea580c',car2:'#f8fafc',car3:'#2563eb',car4:'#71717a',lightPool:'rgba(255,190,90,.18)',text:'#0f1b2d',muted:'#4f6079',amb:.58,dif:.5,edge:'rgba(30,45,70,.22)'}
+  };
+  // vector helpers
+  const sub=(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]], dot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+  const norm=a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return [a[0]/l,a[1]/l,a[2]/l];};
+  const LIGHT=norm([-0.35,-0.6,0.75]);
+  const SHX=0.35/0.75*0.8, SHY=0.6/0.75*0.8;
+  const rgbCache={};
+  function rgb(c){ if(rgbCache[c]) return rgbCache[c]; let h=c.replace('#',''); if(h.length===3)h=h.split('').map(x=>x+x).join('');
+    return rgbCache[c]=[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; }
+  function mix(a,b,t){const A=rgb(a),B=rgb(b);t=Math.max(0,Math.min(1,t));return '#'+[0,1,2].map(i=>Math.round(A[i]+(B[i]-A[i])*t).toString(16).padStart(2,'0')).join('');}
+  function shade(c,b){const A=rgb(c);return `rgb(${Math.min(255,A[0]*b)|0},${Math.min(255,A[1]*b)|0},${Math.min(255,A[2]*b)|0})`;}
+  // geometry builders
+  function newell(p){let n=[0,0,0];for(let i=0;i<p.length;i++){const a=p[i],b=p[(i+1)%p.length];n[0]+=(a[1]-b[1])*(a[2]+b[2]);n[1]+=(a[2]-b[2])*(a[0]+b[0]);n[2]+=(a[0]-b[0])*(a[1]+b[1]);}return norm(n);}
+  function centroid(pts){const c=[0,0,0];pts.forEach(p=>{c[0]+=p[0];c[1]+=p[1];c[2]+=p[2];});return c.map(v=>v/pts.length);}
+  function solid(faces,col,opts={}){ const all=[].concat(...faces), C=centroid(all);
+    return {faces:faces.map(p=>{let n=newell(p);const fc=centroid(p);if(dot(n,sub(fc,C))<0){n=n.map(v=>-v);}return {p,n,c:col};}),c:C,...opts}; }
+  function box(x,y,z,w,d,h,col,opts){
+    const a=[x,y,z],b=[x+w,y,z],c=[x+w,y+d,z],e=[x,y+d,z],A=[x,y,z+h],B=[x+w,y,z+h],Cc=[x+w,y+d,z+h],E=[x,y+d,z+h];
+    return solid([[A,B,Cc,E],[a,b,B,A],[b,c,Cc,B],[c,e,E,Cc],[e,a,A,E]],col,opts); }
+  function cyl(x,y,z,r,h,col,seg=12,rTop=r,opts){
+    const f=[]; const ring=(zz,rr)=>[...Array(seg)].map((_,i)=>{const t=i/seg*2*Math.PI;return [x+rr*Math.cos(t),y+rr*Math.sin(t),zz];});
+    const lo=ring(z,r), hi=ring(z+h,rTop);
+    for(let i=0;i<seg;i++){const j=(i+1)%seg; f.push(rTop>0.01?[lo[i],lo[j],hi[j],hi[i]]:[lo[i],lo[j],hi[i]]);}
+    if(rTop>0.01) f.push(hi.slice());
+    return solid(f,col,opts); }
+  function cylX(x0,x1,y,z,r,col,seg=10){ // horizontal cylinder along x
+    const ring=xx=>[...Array(seg)].map((_,i)=>{const t=i/seg*2*Math.PI;return [xx,y+r*Math.cos(t),z+r*Math.sin(t)];});
+    const L=ring(x0),R=ring(x1),f=[]; for(let i=0;i<seg;i++){const j=(i+1)%seg;f.push([L[i],L[j],R[j],R[i]]);} f.push(L.slice().reverse()); f.push(R.slice());
+    return solid(f,col); }
+  function extrudeX(x0,x1,prof,col,opts){ const f=[]; const L=prof.map(([y,z])=>[x0,y,z]), R=prof.map(([y,z])=>[x1,y,z]);
+    for(let i=0;i<prof.length;i++){const j=(i+1)%prof.length; f.push([L[i],L[j],R[j],R[i]]);}
+    f.push(L.slice().reverse()); f.push(R.slice()); return solid(f,col,opts); }
+  function disc(x,y,z,r,col,seg=10){return {p:[...Array(seg)].map((_,i)=>{const t=i/seg*2*Math.PI;return [x+r*Math.cos(t),y+r*Math.sin(t),z];}),n:[0,0,1],c:col};}
+  function decal(pts,col,opts={}){return {faces:[{p:pts,n:[0,0,1],c:col,flat:true}],c:centroid(pts),decal:true,...opts};}
+  const rect=(x0,y0,x1,y1,z=0.05)=>[[x0,y0,z],[x1,y0,z],[x1,y1,z],[x0,y1,z]];
+  function strip(x0,y0,x1,y1,w,col){ const dx=x1-x0,dy=y1-y0,l=Math.hypot(dx,dy),nx=-dy/l*w/2,ny=dx/l*w/2,z=0.05;
+    return decal([[x0+nx,y0+ny,z],[x1+nx,y1+ny,z],[x1-nx,y1-ny,z],[x0-nx,y0-ny,z]],col); }
+  // detail panels slightly in front of a box face
+  const E=0.07;
+  const pS=(o,y,x0,x1,z0,z1,c,ex={})=>o.faces.push({p:[[x0,y-E,z0],[x1,y-E,z0],[x1,y-E,z1],[x0,y-E,z1]],n:[0,-1,0],c,...ex});
+  const pN=(o,y,x0,x1,z0,z1,c,ex={})=>o.faces.push({p:[[x1,y+E,z0],[x0,y+E,z0],[x0,y+E,z1],[x1,y+E,z1]],n:[0,1,0],c,...ex});
+  const pE=(o,x,y0,y1,z0,z1,c,ex={})=>o.faces.push({p:[[x+E,y0,z0],[x+E,y1,z0],[x+E,y1,z1],[x+E,y0,z1]],n:[1,0,0],c,...ex});
+  const pW=(o,x,y0,y1,z0,z1,c,ex={})=>o.faces.push({p:[[x-E,y1,z0],[x-E,y0,z0],[x-E,y0,z1],[x-E,y1,z1]],n:[-1,0,0],c,...ex});
+  const pT=(o,x0,y0,x1,y1,z,c,ex={})=>o.faces.push({p:[[x0,y0,z+E],[x1,y0,z+E],[x1,y1,z+E],[x0,y1,z+E]],n:[0,0,1],c,...ex});
+  // scene
+  let OBJ=[], FLOWS=[], HOTS=[];
+  function add(o,layer,v,extra={}){o.layer=layer;if(v)o.vis=v;Object.assign(o,extra);OBJ.push(o);return o;}
+  function shadowBox(x,y,w,d,h,layer,v){ const dx=h*SHX, dy=h*SHY;
+    return add(decal([[x,y,0.04],[x+w,y,0.04],[x+w+dx,y+dy,0.04],[x+w+dx,y+d+dy,0.04],[x+dx,y+d+dy,0.04],[x,y+d,0.04]],'shadow'),layer,v); }
+  const HALLS={ single:[[38,38,58,36,12]], twin:[[36,36,62,17,12],[36,58,62,17,12]] };
+  const layoutOf=S=>S.itMW>60?'twin':'single';
+  const hallNorth=a=>Math.max(...HALLS[a].map(h=>h[1]+h[3]));
+  const hallWestX=a=>Math.min(...HALLS[a].map(h=>h[0]));
+  const isMode=m=>()=>st&&st.S.mode===m;
+  function build(){
+    OBJ=[]; FLOWS=[]; HOTS=[];
+    // island base
+    const per=[], pts=[[0,0],[35,-1.5],[70,0],[105,-1.2],[140,0],[141.5,30],[140,55],[141.2,82],[140,110],[105,111.4],[70,110],[35,111.2],[0,110],[-1.4,82],[0,55],[-1.2,28]];
+    pts.forEach(([x,y])=>per.push([x,y,-8]));
+    const mid=pts.map(([x,y],i)=>[70+(x-70)*0.72+((i*37)%7-3),55+(y-55)*0.7+((i*53)%7-3),-26-((i*13)%9)]), bottom=[70,55,-52];
+    const rockF=[]; for(let i=0;i<per.length;i++){const j=(i+1)%per.length; rockF.push([per[i],per[j],mid[j]]); rockF.push([per[i],mid[j],mid[i]]); rockF.push([mid[i],mid[j],bottom]);}
+    OBJ.push({faces:rockF.map(p=>{let n=newell(p);const fc=centroid(p);if(dot(n,sub(fc,[70,55,-20]))<0)n=n.map(v=>-v);return {p,n,c:'rock'};}),c:[70,55,-30],base:true});
+    OBJ.push(Object.assign(box(0,0,-8,140,110,8,'platSide'),{base:true}));
+    // ---------- site layer: roads, car park, fence, gate, trees ----------
+    add(decal(rect(64,-0.5,72,34),'road'),'site');                      // entrance road
+    add(decal(rect(6,30,134,34),'road'),'site'); add(decal(rect(6,77,134,81),'road'),'site');
+    add(decal(rect(30,34,34,77),'road'),'site'); add(decal(rect(100,34,104,77),'road'),'site');
+    for(let y=2;y<32;y+=5) add(strip(68,y,68,y+2.4,0.35,'roadLine'),'site');
+    for(let x=10;x<132;x+=6){ add(strip(x,32,x+2.6,32,0.35,'roadLine'),'site'); add(strip(x,79,x+2.6,79,0.35,'roadLine'),'site'); }
+    add(decal(rect(74,8,96,24),'park'),'site');
+    for(let x=74;x<=96;x+=3.6) add(strip(x,8,x,13.5,0.25,'roadLine'),'site');
+    for(let x=74;x<=96;x+=3.6) add(strip(x,18.5,x,24,0.25,'roadLine'),'site');
+    const carCols=['car1','car2','car3','car4','car2','car4','car1','car3'];
+    [[75.2,8.6],[78.8,8.6],[86,8.6],[93.2,8.6],[75.2,19.2],[82.4,19.2],[89.6,19.2],[93.2,19.2]].forEach(([x,y],i)=>{
+      add(box(x,y,0,1.8,4,1.1,carCols[i]),'site'); add(box(x+0.2,y+1,1.1,1.4,2,0.7,'glass'),'site'); });
+    add(decal(rect(40,4,64,30),'lightPool'),'site');
+    // perimeter fence with gate gap (x 63 to 73 on the south edge)
+    const fenceRun=(x0,y0,x1,y1)=>{ const L=Math.hypot(x1-x0,y1-y0), n=Math.max(1,Math.round(L/12));
+      for(let k=0;k<n;k++){ const a=k/n,b=(k+1)/n, ax=x0+(x1-x0)*a, ay=y0+(y1-y0)*a, bx=x0+(x1-x0)*b, by=y0+(y1-y0)*b;
+        const o={faces:[],lines:[],lc:'fence',lw:1,c:[(ax+bx)/2,(ay+by)/2,1]}; const posts=Math.max(2,Math.round(Math.hypot(bx-ax,by-ay)/3));
+        for(let i=0;i<=posts;i++){const t=i/posts; o.lines.push([[ax+(bx-ax)*t,ay+(by-ay)*t,0],[ax+(bx-ax)*t,ay+(by-ay)*t,2.4]]);}
+        o.lines.push([[ax,ay,2.3],[bx,by,2.3]],[[ax,ay,1.2],[bx,by,1.2]]); add(o,'site'); } };
+    fenceRun(2.5,2.5,63,2.5); fenceRun(73,2.5,137.5,2.5); fenceRun(137.5,2.5,137.5,107.5); fenceRun(137.5,107.5,2.5,107.5); fenceRun(2.5,107.5,2.5,2.5);
+    const gh=box(73.5,3.4,0,4,3.2,3,'office'); pS(gh,3.4,74.2,76.8,1.3,2.5,'window',{em:true,a:.9}); add(gh,'site'); add(box(73.2,3.1,3,4.6,3.8,0.35,'roof'),'site'); shadowBox(73.5,3.4,4,3.2,3,'site');
+    add(box(63,1.6,0,0.6,0.6,3,'stack'),'site'); add(box(72.4,1.6,0,0.6,0.6,3,'stack'),'site'); add(box(63.6,1.8,2.2,5,0.25,0.25,'car1'),'site');
+    for(const [x,y] of [[76,28],[82,28],[88,28],[94,28],[136,40],[136,50],[136,60],[136,70],[4.5,84],[4.5,94],[4.5,102],[120,26]]){
+      add(cyl(x,y,0,0.35,1.6,'trunk',6),'site'); add(cyl(x,y,1.4,1.9,3.8,'tree',8,0),'site'); }
+    // ---------- power layer ----------
+    add(decal(rect(4,4,40,24),'gravel'),'power');
+    const py={faces:[],lines:[],c:[9,13,10],lc:'muted',lw:1.4}; const B=[[7.5,11.5],[10.5,11.5],[10.5,14.5],[7.5,14.5]];
+    B.forEach(([x,y])=>py.lines.push([[x,y,0],[9,13,20]])); py.lines.push([[5,13,17],[13,13,17]],[[6,13,13],[12,13,13]],[[7.6,13,7],[10.4,13,7]]);
+    add(py,'site');
+    FLOWS.push({layer:'site',pts:[[-30,-12,22],[-8,3,19],[9,13,17]],col:'#9fb1c9',kind:'cable',over:true,static:true,w:1.2});
+    for(const x of [15,24,33]){
+      add(box(x-0.6,8.4,0,6.2,6.2,0.4,'concrete'),'power');
+      const t=box(x,9,0.4,5,5,4.2,'xfmr'); add(t,'power');
+      for(let k=0;k<5;k++){ add(box(x-0.9,9.5+k*0.95,0.8,0.9,0.3,3.2,'fin2'),'power'); add(box(x+5,9.5+k*0.95,0.8,0.9,0.3,3.2,'fin2'),'power'); }
+      for(let k=0;k<3;k++) add(cyl(x+1.2+k*1.3,11.2,4.6,0.28,1.8,'insul',6),'power');
+      add(cylX(x+0.6,x+4.4,13.4,5.6,0.55,'xfmr',8),'power');
+      add(box(x+5.8,8,0,0.5,7,5.6,'concrete'),'power'); shadowBox(x,9,5,5,4.6,'power');
+    }
+    const eb=box(6,38,0,18,15,7,'ups'); add(eb,'power');
+    for(let y=39.5;y<52;y+=1.2) pE(eb,24,y,y+0.7,1.2,5.8,'louvre');
+    pS(eb,38,9,13,0,3.6,'door'); pS(eb,38,15,21,4.6,5.6,'window',{em:true,a:.7});
+    for(const x of [8,13,18]){ add(box(x,41,7,3.4,2.6,1.3,'metal'),'power'); }
+    shadowBox(6,38,18,15,7,'power');
+    const genset=(x,y)=>{ const g=box(x,y,0,4,10,3.6,'gen'); pN(g,y+10,x+0.3,x+3.7,0.3,3.3,'genEnd'); for(let k=0;k<4;k++) pE(g,x+4,y+1+k*2,y+2.2+k*2,0.6,3,'louvre');
+      add(g,'power'); add(cyl(x+1.2,y+2.2,3.6,0.35,2.6,'stack',8),'power'); add(cyl(x+2.8,y+2.2,3.6,0.35,2.6,'stack',8),'power'); shadowBox(x,y,4,10,3.6,'power'); };
+    for(const x of [6,11,16,21]) genset(x,57); genset(6,69); genset(11,69);
+    for(const y of [71,74.5]){ add(cylX(17,27,y,1.3,1.2,'tankRoof',10),'power'); add(box(18,y-0.9,0,0.5,1.8,0.5,'concrete'),'power'); add(box(25.5,y-0.9,0,0.5,1.8,0.5,'concrete'),'power'); }
+    // ---------- data halls ----------
+    for(const a of Object.keys(HALLS)) HALLS[a].forEach(([x,y,w,d,h],k)=>{
+      const vOn=()=>st&&st.layout===a&&!xray, vX=()=>st&&st.layout===a&&xray;
+      const o=box(x,y,0,w,d,h,'hall'); o.faces[0].c='roof';
+      for(let i=x+1.5;i<x+w-2;i+=3.2) pS(o,y,i,i+1.1,0.8,h-1.4,'fin');
+      pS(o,y,x+1,x+w-1,h-1.1,h-0.5,'window',{em:true,a:.55});
+      for(let i=y+1.5;i<y+d-1.5;i+=1.4) pE(o,x+w,i,i+0.8,h-4,h-1.2,'louvre');
+      pE(o,x+w,y+3,y+7,0,4.2,'door'); pE(o,x+w,y+9,y+13,0,4.2,'door');
+      pW(o,x,y+2,y+d-2,h-1.1,h-0.5,'window',{em:true,a:.45});
+      add(o,'hall',vOn,{hallId:a+k}); shadowBox(x,y,w,d,h,'hall',()=>st&&st.layout===a);
+      // parapet and roof plant
+      add(box(x,y,h,w,0.5,0.9,'fin'),'hall',vOn); add(box(x,y+d-0.5,h,w,0.5,0.9,'fin'),'hall',vOn);
+      add(box(x,y+0.5,h,0.5,d-1,0.9,'fin'),'hall',vOn); add(box(x+w-0.5,y+0.5,h,0.5,d-1,0.9,'fin'),'hall',vOn);
+      const nU=Math.floor((w-6)/7);
+      for(let i=0;i<nU;i++){ const ux=x+4+i*7, uy=y+d/2-1.4; const u=box(ux,uy,h,4,2.8,1.5,'metal'); u.faces.push(disc(ux+1.1,uy+1.4,h+1.56,0.9,'fan',8)); u.faces.push(disc(ux+2.9,uy+1.4,h+1.56,0.9,'fan',8)); add(u,'hall',vOn); }
+      add(box(x+w-8,y+2,h,5,4,3,'roof'),'hall',vOn);
+      // inside view
+      add(decal(rect(x,y,x+w,y+d,0.08),'wall',{a:.55}),'hall',vX);
+      add(box(x,y,0,w,0.6,2.2,'wall'),'hall',vX); add(box(x,y+d-0.6,0,w,0.6,2.2,'wall'),'hall',vX);
+      add(box(x,y,0,0.6,d,2.2,'wall'),'hall',vX); add(box(x+w-0.6,y,0,0.6,d,2.2,'wall'),'hall',vX);
+      const rows=Math.max(2,Math.floor((d-7)/4.6)), cols=Math.floor((w-8)/3.0); let n=0;
+      for(let r=0;r<rows;r++){
+        const ry=y+3+r*4.6;
+        for(let c=0;c<cols;c++){ const id=`${a}${k}-${n++}`;
+          add(box(x+4+c*3.0,ry,0,2.6,2.4,4.4,()=>hotSet.has(id)?P.rackH:P.rackC),'hall',vX,{rack:id}); }
+        if(r%2===0 && r+1<rows) add(box(x+4,ry+2.4,4.4,cols*3.0-0.4,2.2,0.25,'contain'),'hall',vX);
+      }
+      for(let i=0;i<Math.floor((w-8)/9);i++) add(box(x+4+i*9,y+d-2.6,0,4,1.6,3.6,'crah'),'hall',vX);
+    });
+    // office with glazed front
+    const off=box(44,10,0,18,12,8,'office'); pS(off,10,44.6,61.4,0.4,7.4,'glass',{em:true,a:.85}); pE(off,62,10.6,21.4,4.4,7.4,'glass',{em:true,a:.7});
+    pS(off,10,51,55,0,3,'window',{em:true,a:.9}); add(off,'hall');
+    const mull={faces:[],lines:[],lc:'frame',lw:1,c:[53,9.8,4]}; for(let x=44.6;x<=61.5;x+=2.1) mull.lines.push([[x,9.9,0.4],[x,9.9,7.4]]); mull.lines.push([[44.6,9.9,4],[61.4,9.9,4]]); add(mull,'hall');
+    add(box(49,6.5,3.2,8,3.5,0.4,'roof'),'hall'); add(box(49.2,6.7,0,0.3,0.3,3.2,'frame'),'hall'); add(box(56.5,6.7,0,0.3,0.3,3.2,'frame'),'hall');
+    shadowBox(44,10,18,12,8,'hall');
+    // meet-me room with fibre routes to Europe and the Gulf
+    const mmr=box(104,10,0,12,12,9,'ups'); pS(mmr,10,105,115,2,7.5,'mmr',{em:true,a:.85}); for(let y=11;y<21;y+=1.3) pE(mmr,116,y,y+0.7,2,7,'louvre'); add(mmr,'hall');
+    add(cyl(113,19,9,0.25,6,'frame',6),'hall'); shadowBox(104,10,12,12,9,'hall');
+    for(const [mx,my] of [[110,4.5],[118,6]]) add(decal(rect(mx-0.8,my-0.8,mx+0.8,my+0.8,0.06),'stack'),'hall');
+    for(const tgt of [[205,-45,0],[220,70,0],[-60,-45,0],[60,-85,0]]){
+      const from=[110,16,9], ps=[]; for(let i=0;i<=24;i++){const t=i/24;ps.push([from[0]+(tgt[0]-from[0])*t,from[1]+(tgt[1]-from[1])*t,from[2]+(tgt[2]-from[2])*t+40*Math.sin(Math.PI*t)]);}
+      FLOWS.push({layer:'hall',pts:ps,col:'#22d3ee',w:1.5,kind:'fibre',over:true});
+    }
+    // ---------- solar field and wind (site) ----------
+    for(const y of [38,45,52,59,66]) for(const [x0,x1] of [[106,120],[122,135]]){
+      const o=extrudeX(x0,x1,[[y,1.1],[y+4.4,3.2],[y+4.4,3.45],[y,1.35]],'panel'); o.faces.forEach(f=>{if(Math.abs(f.n[0])>0.5)f.c='frame';});
+      add(o,'site'); for(const px of [x0+1,x0+(x1-x0)/2,x1-1.4]){ add(box(px,y+0.6,0,0.35,0.35,1.3,'frame'),'site'); add(box(px,y+3.6,0,0.35,0.35,2.9,'frame'),'site'); } }
+    add(box(104.5,72,0,4,2.5,2.4,'metal'),'site'); add(box(124,72,0,4,2.5,2.4,'metal'),'site');
+    [[112,90],[124,86],[133,97],[115,101],[127,104]].forEach(([x,y],i)=>{
+      add(cyl(x,y,0,0.75,21,'turbine',10,0.35),'site'); add(box(x-1.4,y-1,0,2.8,2.8,0.5,'concrete'),'site');
+      add({faces:[],c:[x,y,21],dyn:(t)=>{const fs=[];fs.push(...box(x-0.8,y-1.4,20.4,1.6,3.6,1.5,'turbine').faces);
+        const hub=[x,y-1.5,21.1];
+        for(let b=0;b<3;b++){const ang=t*(reduceMotion?0:1.4)+i+b*2*Math.PI/3; const tip=[x+9*Math.cos(ang),y-1.55,21.1+9*Math.sin(ang)]; const sd=[x+0.9*Math.cos(ang+1.57),y-1.55,21.1+0.9*Math.sin(ang+1.57)];
+          fs.push({p:[hub,sd,tip],n:[0,-1,0],c:'turbine',ds:true});}
+        return fs;}},'site');
+    });
+    // ---------- water layer ----------
+    const tankCol=()=>({potable:P.tankP,tww:P.tankT,desal:P.tankD})[st.S.waterSource];
+    add(cyl(14,94,0,6,10,tankCol,18),'water'); add(cyl(14,94,10,6,1.8,'tankRoof',18,0.8),'water'); shadowBox(8,88,12,12,11,'water');
+    add(cyl(28,98,0,3.2,7,tankCol,14),'water'); add(cyl(28,98,7,3.2,1.2,'tankRoof',14,0.5),'water');
+    const lad={faces:[],lines:[],lc:'frame',lw:1,c:[8,94,6]}; lad.lines.push([[7.9,93.4,0],[7.9,93.4,11]],[[7.9,94.6,0],[7.9,94.6,11]]); for(let z=1;z<11;z+=1.2) lad.lines.push([[7.9,93.4,z],[7.9,94.6,z]]); add(lad,'water');
+    const ph=box(22,84,0,9,6,3.4,'metal'); pS(ph,84,24,27,0,2.4,'door'); add(ph,'water'); add(box(21.8,83.8,3.4,9.4,6.4,0.3,'roof'),'water'); shadowBox(22,84,9,6,3.4,'water');
+    for(const x of [34,36.4,38.8]) add(cyl(x,88,0,1,4.2,'metal',10),'water');
+    add(box(33,85,0,7,1.2,0.8,'concrete'),'water');
+    // ---------- cooling layer ----------
+    const chiller=(x,y)=>{const o=box(x,y,0.3,11,5,3.4,'metal'); o.faces[0].c=()=>mix(P.metal,'#f97316',Math.min(0.85,st.mech*3.2));
+      for(let i=x+0.6;i<x+10.6;i+=1.25){ pS(o,y,i,i+0.8,0.6,3.1,'coil'); pN(o,y+5,i,i+0.8,0.6,3.1,'coil'); }
+      for(let i=0;i<4;i++) o.faces.push(disc(x+1.5+i*2.65,y+2.5,3.78,1.05,'fan',10));
+      return [box(x+0.3,y+0.3,0,10.4,4.4,0.3,'concrete'),o];};
+    const dryc=(x,y,pads)=>{ const parts=[]; for(const [lx,ly] of [[x+0.3,y+0.3],[x+11.3,y+0.3],[x+0.3,y+4.3],[x+11.3,y+4.3]]) parts.push(box(lx,ly,0,0.4,0.4,1.3,'frame'));
+      const o=box(x,y,1.3,12,5,2.1,'dry'); for(let i=x+0.5;i<x+11.5;i+=0.9){ pS(o,y,i,i+0.55,1.5,3.2,pads?'pad':'coil'); pN(o,y+5,i,i+0.55,1.5,3.2,pads?'pad':'coil'); }
+      for(let r=0;r<2;r++) for(let c=0;c<3;c++) o.faces.push(disc(x+2+c*4,y+1.3+r*2.4,3.48,1.05,'fan',10));
+      parts.push(o); return parts; };
+    const cell=(x,y,s,h)=>{ const parts=[box(x-0.4,y-0.4,0,s+0.8,s+0.8,0.7,'concrete')]; const o=box(x,y,0.7,s,s,h,'tower');
+      for(let i=x+0.6;i<x+s-0.6;i+=1.1){ pS(o,y,i,i+0.7,1.0,h*0.55,'towerLouvre'); }
+      for(let i=y+0.6;i<y+s-0.6;i+=1.1){ pW(o,x,i,i+0.7,1.0,h*0.55,'towerLouvre'); }
+      parts.push(o); parts.push(cyl(x+s/2,y+s/2,0.7+h,s*0.32,1.6,'tower',14,s*0.3)); const top=disc(x+s/2,y+s/2,0.7+h+1.62,s*0.27,'fan',14); parts.push({faces:[top],c:[x+s/2,y+s/2,h+2]}); return parts; };
+    const M=(m,o)=>{ (Array.isArray(o)?o:[o]).forEach(q=>add(q,'cooling',isMode(m))); };
+    const MS=(m,x,y,w,d,h)=>shadowBox(x,y,w,d,h,'cooling',isMode(m));
+    // evaporative: cooling tower cells + chillers
+    [47,57,67,77].forEach(x=>{M('evap',cell(x,95,9,6.5)); MS('evap',x,95,9,9,8.5);});
+    [46,60,74].forEach(x=>{M('evap',chiller(x,84)); MS('evap',x,84,11,5,3.7);});
+    // air coolers (dry) + chillers
+    [46,60,74,88].forEach(x=>{M('dry',dryc(x,92,false));M('dry',dryc(x,99,false)); MS('dry',x,92,12,5,3.4); MS('dry',x,99,12,5,3.4);});
+    [46,60,74].forEach(x=>{M('dry',chiller(x,83));});
+    // mixed (hybrid): air coolers with wetted pads + two small towers + chillers
+    [46,60,74,88].forEach(x=>{M('hybrid',dryc(x,99,true)); MS('hybrid',x,99,12,5,3.4);});
+    [48,56].forEach(x=>{M('hybrid',cell(x,90.5,6.5,4.5)); MS('hybrid',x,90.5,6.5,6.5,6);});
+    [68,82].forEach(x=>{M('hybrid',chiller(x,84));});
+    // liquid cooling: coolant distribution units + air coolers + one chiller
+    [46,60,74,88].forEach(x=>{M('dlc',dryc(x,99,false)); MS('dlc',x,99,12,5,3.4);}); M('dlc',dryc(60,92,false));
+    for(const x of [44,51]){ const c=box(x,83,0,5,6,4.5,'cdu'); pS(c,83,x+0.8,x+4.2,1,3.8,'louvre'); M('dlc',c); MS('dlc',x,83,5,6,4.5); }
+    M('dlc',chiller(76,86));
+    // ---------- flows ----------
+    FLOWS.push({layer:'power',pts:[[9,13,0.4],[13,20,0.4],[13,36,0.4],[13,38,0.4]],col:'#fbbf24',kind:'energy'});
+    for(const a of Object.keys(HALLS)) FLOWS.push({layer:'power',pts:[[24,46,0.4],[30,46,0.4],[30,50,0.4],[hallWestX(a),50,0.4]],col:'#fbbf24',kind:'energy',vis:()=>st&&st.layout===a});
+    FLOWS.push({layer:'site',pts:[[106,56,0.4],[102,56,0.4],[98,56,0.4]],col:'#fbbf24',kind:'pv'});
+    FLOWS.push({layer:'water',pts:[[20,94,0.4],[30,92,0.4],[44,92,0.4]],col:'#38bdf8',kind:'water',vis:()=>st&&st.R.water>=5000});
+    for(const a of Object.keys(HALLS)){ const yn=hallNorth(a);
+      for(const px of [46.5,53.5]) FLOWS.push({layer:'cooling',pts:[[px,83,3],[px,yn+1,3],[px,yn-0.2,3]],col:'#a78bfa',kind:'liquid',vis:()=>st&&st.S.mode==='dlc'&&st.layout===a}); }
+    // ---------- hotspots ----------
+    const hallTop=()=>{const hs=HALLS[st.layout];const x=hs.reduce((s,h)=>s+h[0]+h[2]/2,0)/hs.length,y=hs.reduce((s,h)=>s+h[1]+h[3]/2,0)/hs.length;return [x,y,hs[0][4]+4];};
+    HOTS=[
+      {id:'site',label:'Location',layer:'site',p:[68,10,3]},
+      {id:'power',label:'Power supply',layer:'power',p:[24,11,9],info:true},
+      {id:'gen',label:'Backup generators',layer:'power',p:[14,62,7],info:true},
+      {id:'hall',label:'Data hall',layer:'hall',p:()=>hallTop()},
+      {id:'cooling',label:'Cooling',layer:'cooling',p:[66,93,11]},
+      {id:'water',label:'Water',layer:'water',p:[14,94,15]},
+      {id:'solar',label:'Solar and wind',layer:'site',p:[121,56,6],info:true},
+      {id:'ix',label:'Meet-me room',layer:'hall',p:[110,16,12],info:true},
+    ];
+    hsLayer.innerHTML=HOTS.map(h=>`<div class="hs-wrap${h.info?' info':''}" data-id="${h.id}"><button class="hs" data-target="${h.id}" aria-label="${h.label}"><span class="hs-dot"></span></button><span class="hs-label">${h.label}</span></div>`).join('');
+    hsLayer.querySelectorAll('.hs').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();onHotspot(b.dataset.target,b);}));
+  }
+  // camera and projection
+  let ce=[0,0,0], rgt=[1,0,0], up=[0,0,1], fwd=[0,1,0], focal=800;
+  function setupCam(){
+    const yaw=cam.yaw*Math.PI/180, pit=cam.pitch*Math.PI/180, dist=cam.dist*(1+0.55*explodeT), tz=GAP*2*explodeT;
+    const T=[TGT[0],TGT[1],TGT[2]+tz];
+    ce=[T[0]+dist*Math.cos(pit)*Math.cos(yaw),T[1]+dist*Math.cos(pit)*Math.sin(yaw),T[2]+dist*Math.sin(pit)];
+    fwd=norm(sub(T,ce)); rgt=norm(cross(fwd,[0,0,1])); up=cross(rgt,fwd);
+    focal=W<700?W*1.75:Math.min(W,H*1.35)*1.15;
+  }
+  const loff=l=>l&&LAYERS.indexOf(l)>=0?LAYERS.indexOf(l)*GAP*explodeT:0;
+  function proj(p,oz=0){ const d=[p[0]-ce[0],p[1]-ce[1],p[2]+oz-ce[2]]; const zv=dot(d,fwd), k=focal/Math.max(1,zv);
+    return [W/2+cam.panX+cam.inset+dot(d,rgt)*k, H/2+cam.panY-dot(d,up)*k, zv]; }
+  function colorOf(c){ if(typeof c==='function') return c(); return P[c]||c; }
+  function drawObj(o,alphaMul=1){
+    const oz=loff(o.layer); const faces=o.dyn?o.dyn(performance.now()/1000):o.faces;
+    for(const f of faces){
+      const p0=f.p[0], toCam=[ce[0]-p0[0],ce[1]-p0[1],ce[2]-(p0[2]+oz)];
+      if(!f.ds && !f.flat && dot(f.n,toCam)<=0) continue;
+      const pts=f.p.map(p=>proj(p,oz)); const base=colorOf(f.c); let fill;
+      if(f.em) fill=base; else if(base.startsWith('rgba')) fill=base;
+      else { const b=P.amb+P.dif*Math.max(0,dot(f.n,LIGHT))+(f.n[2]>0.9?0.06:0); fill=shade(base,b); }
+      ctx.globalAlpha=(f.a!=null?f.a:(o.a!=null?o.a:1))*alphaMul;
+      ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.closePath();
+      ctx.fillStyle=fill; ctx.fill();
+      if(!f.em && !o.decal && !f.flat){ ctx.strokeStyle=P.edge; ctx.lineWidth=0.6; ctx.stroke(); }
+    }
+    if(o.lines){ ctx.globalAlpha=alphaMul; ctx.strokeStyle=colorOf(o.lc||'muted'); ctx.lineWidth=o.lw||1.4;
+      ctx.beginPath(); for(const l of o.lines){ const a=proj(l[0],oz),b=proj(l[1],oz); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); } ctx.stroke(); }
+    ctx.globalAlpha=1;
+  }
+  const depth=o=>proj(o.c,loff(o.layer))[2];
+  function drawFlow(fl,t){
+    const oz=loff(fl.layer), pts=fl.pts.map(p=>proj(p,oz));
+    ctx.save(); ctx.lineCap='round'; ctx.lineJoin='round';
+    let w=fl.w||2.5, speed=30;
+    if(fl.kind==='energy'){ w=1.6+1.3*Math.log10(1+st.R.total/8760); speed=20+st.R.total/8760*0.6; }
+    if(fl.kind==='water'){ const wpd=st.R.water/365; w=1.4+1.2*Math.log10(1+wpd/40); speed=10+Math.min(60,wpd/40); }
+    if(fl.kind==='pv') w=2.6;
+    ctx.strokeStyle=fl.col; ctx.lineWidth=w;
+    if(!fl.static){ ctx.setLineDash(fl.kind==='fibre'?[3,7]:[8,9]); ctx.lineDashOffset=reduceMotion?0:-t*speed; }
+    ctx.globalAlpha=fl.kind==='cable'?0.7:fl.kind==='fibre'?0.5:0.95;
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]); ctx.stroke();
+    ctx.restore();
+  }
+  function background(){
+    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,P.sky1); g.addColorStop(1,P.sky2); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    const heat=st?Math.max(0,Math.min(1,(st.R.monthly[6].db-20)/16)):0.3;
+    const sx=W*0.82, sy=H*0.12, r=Math.max(W,H)*0.75, sg=ctx.createRadialGradient(sx,sy,0,sx,sy,r), col=heat>0.7?'239,68,68':'245,158,11';
+    sg.addColorStop(0,`rgba(${col},${(theme==='dark'?0.10+0.32*heat:0.05+0.18*heat).toFixed(2)})`); sg.addColorStop(1,`rgba(${col},0)`);
+    ctx.fillStyle=sg; ctx.fillRect(0,0,W,H);
+  }
+  function frame(){
+    if(!ctx||!st) return;
+    for(const k of ['yaw','pitch','dist','panX','panY','inset']){ const d=camT[k]-cam[k]; cam[k]=Math.abs(d)<0.01?camT[k]:cam[k]+d*0.16; }
+    const de=explodeTarget-explodeT; explodeT=Math.abs(de)<0.002?explodeTarget:explodeT+de*0.12;
+    setupCam(); ctx.setTransform(dpr,0,0,dpr,0,0); background();
+    const t=performance.now()/1000, visible=OBJ.filter(o=>!o.vis||o.vis()), baseA=1-explodeT;
+    if(baseA>0.02){ visible.filter(o=>o.base).sort((a,b)=>depth(b)-depth(a)).forEach(o=>drawObj(o,baseA));
+      const top=rect(0,0,140,110,0).map(p=>proj(p));
+      ctx.globalAlpha=baseA; ctx.fillStyle=st.S.heatwave?mix(P.platTop,'#b45309',0.18):P.platTop; ctx.beginPath(); top.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.fill(); ctx.globalAlpha=1; }
+    const flowsVis=FLOWS.filter(f=>!f.vis||f.vis());
+    const groups=explodeT>0.02?LAYERS.map(l=>[l]):[LAYERS];
+    for(const g of groups){
+      if(explodeT>0.02){ const l=g[0], oz=loff(l), sl=rect(0,0,140,110,0).map(p=>proj(p,oz));
+        ctx.globalAlpha=Math.min(1,explodeT*1.2); ctx.fillStyle=LAYER_COL[l]+'22'; ctx.strokeStyle=LAYER_COL[l]; ctx.lineWidth=2;
+        ctx.beginPath(); sl.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.globalAlpha=1; }
+      const objs=visible.filter(o=>!o.base&&g.includes(o.layer));
+      objs.filter(o=>o.decal).forEach(o=>drawObj(o));
+      flowsVis.filter(f=>!f.over&&g.includes(f.layer)).forEach(f=>drawFlow(f,t));
+      objs.filter(o=>!o.decal).sort((a,b)=>depth(b)-depth(a)).forEach(o=>drawObj(o));
+      if(explodeT>0.5){ const l=g[0], oz=loff(l), cs=rect(0,0,140,110,0).map(p=>proj(p,oz)), L=cs.reduce((a,b)=>b[0]<a[0]?b:a);
+        ctx.save(); ctx.globalAlpha=Math.min(1,(explodeT-0.5)*2); ctx.textAlign='right'; ctx.font='bold 16px Arial'; ctx.fillStyle=LAYER_COL[l];
+        ctx.fillText(LAYER_NAME[l],L[0]-12,L[1]-4); ctx.font='14px Arial'; ctx.fillStyle=P.muted; ctx.fillText(st.layerInfo[l]||'',L[0]-12,L[1]+14); ctx.restore(); }
+    }
+    flowsVis.filter(f=>f.over).forEach(f=>drawFlow(f,t));
+    hsLayer.querySelectorAll('.hs-wrap').forEach(el=>{ const h=HOTS.find(x=>x.id===el.dataset.id);
+      const p=typeof h.p==='function'?h.p():h.p; const [x,y]=proj(p,loff(h.layer));
+      el.style.transform=`translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
+      el.classList.toggle('hsel',selected===h.id); el.classList.toggle('nolabel',!showLabels); });
+  }
+  function loop(){ if(!document.hidden) frame(); requestAnimationFrame(loop); }
+  function bindInput(){
+    const ptrs=new Map(); let mode=null, lastPinch=0;
+    cv.addEventListener('contextmenu',e=>e.preventDefault());
+    cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);ptrs.set(e.pointerId,[e.clientX,e.clientY]);mode=(e.button===2||e.shiftKey)?'pan':'rot';
+      if(ptrs.size===2){const [a,b]=[...ptrs.values()];lastPinch=Math.hypot(a[0]-b[0],a[1]-b[1]);} cv.classList.add('grab');});
+    cv.addEventListener('pointermove',e=>{ if(!ptrs.has(e.pointerId)) return; const prev=ptrs.get(e.pointerId), dx=e.clientX-prev[0], dy=e.clientY-prev[1]; ptrs.set(e.pointerId,[e.clientX,e.clientY]);
+      if(ptrs.size===2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a[0]-b[0],a[1]-b[1]); if(lastPinch){camT.dist=clampDist(camT.dist*lastPinch/d);} lastPinch=d; return;}
+      if(mode==='pan'){camT.panX+=dx;camT.panY+=dy;} else {camT.yaw-=dx*0.35; camT.pitch=Math.max(12,Math.min(78,camT.pitch+dy*0.25));} });
+    const end=e=>{ptrs.delete(e.pointerId); if(ptrs.size<2) lastPinch=0; if(!ptrs.size) cv.classList.remove('grab');};
+    cv.addEventListener('pointerup',end); cv.addEventListener('pointercancel',end);
+    cv.addEventListener('wheel',e=>{e.preventDefault(); camT.dist=clampDist(camT.dist*(1+Math.sign(e.deltaY)*0.08));},{passive:false});
+    cv.addEventListener('keydown',e=>{ const k=e.key;
+      if(k==='ArrowLeft'){camT.yaw+=8;} else if(k==='ArrowRight'){camT.yaw-=8;} else if(k==='ArrowUp'){camT.pitch=Math.min(78,camT.pitch+4);} else if(k==='ArrowDown'){camT.pitch=Math.max(12,camT.pitch-4);}
+      else if(k==='+'||k==='='){camT.dist=clampDist(camT.dist*0.9);} else if(k==='-'){camT.dist=clampDist(camT.dist*1.1);} else return; e.preventDefault(); });
+  }
+  const clampDist=d=>Math.max(120,Math.min(560,d));
+  function resize(){ const r=cv.parentElement.getBoundingClientRect(); W=r.width; H=r.height; dpr=Math.min(2,window.devicePixelRatio||1);
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); cv.style.width=W+'px'; cv.style.height=H+'px'; }
+  return {
+    init(canvas,layer,cb){ cv=canvas; ctx=cv.getContext('2d'); hsLayer=layer; onHotspot=cb; P=PAL[theme]; resize(); bindInput();
+      window.addEventListener('resize',resize); if(window.ResizeObserver) new ResizeObserver(resize).observe(cv.parentElement); build(); requestAnimationFrame(loop); },
+    setState(S,R,layerInfo){ const layout=layoutOf(S); st={S,R,mech:R.mech,layout,layerInfo};
+      hotSet=new Set(); OBJ.filter(o=>o.rack&&o.rack.startsWith(layout)).forEach((o,i,arr)=>{ if(((i*37)%arr.length)/arr.length<FIXED.aiShare/100) hotSet.add(o.rack); });
+      if(!document.hidden) frame(); },
+    setTheme(t){ theme=t; P=PAL[t]; if(st) frame(); },
+    setExplode(b){ explodeTarget=b?1:0; }, isExploded:()=>explodeTarget===1,
+    setXray(b){ xray=b; }, isXray:()=>xray,
+    setLabels(b){ showLabels=b; }, labels:()=>showLabels,
+    rotate(d){ camT.yaw+=d; }, zoom(f){ camT.dist=clampDist(camT.dist*f); },
+    resetView(){ Object.assign(camT,{yaw:-58,pitch:34,dist:270,panX:0,panY:0}); },
+    setInset(px){ camT.inset=px; }, select(id){ selected=id; },
+    stats:()=>({objects:OBJ.length,faces:OBJ.reduce((s,o)=>s+(o.faces?o.faces.length:0),0)})
+  };
+})();
+
+// ===================== App =====================
+const BASE={site:'amman',heatwave:false,itMW:40,mode:'hybrid',waterSource:'tww'};
+const DEFAULT_LIMIT=100000;
+const SCENARIOS=[
+  {id:'standard',name:'Standard plan',q:'Is the company\'s proposal good enough?',tip:'Summer months slip below class C. Try liquid cooling.',inputs:{}},
+  {id:'drinking',name:'Drinking water plan',q:'What if they cool with drinking water?',tip:'Good energy rating, but it uses drinking water.',inputs:{mode:'evap',waterSource:'potable'}},
+  {id:'nowater',name:'No-water plan',q:'What if it uses almost no water?',tip:'Almost no water, but hot Aqaba costs energy. Try Amman.',inputs:{mode:'dry',site:'aqaba'}},
+  {id:'crisis',name:'Crisis year',q:'Can the plan survive a hot, dry year?',tip:'The water limit drops to 30,000 m³. Change the cooling.',inputs:{heatwave:true},limit:30000},
+];
+const MODE_NAMES={evap:'Cooling towers',dry:'Air coolers',hybrid:'Mixed cooling',dlc:'Liquid cooling'};
+const MODE_INFO={
+  evap:'Cooling towers evaporate water to carry heat away. Low energy, but they use the most water.',
+  dry:'Air coolers blow outside air over closed pipes. Almost no water, but they need more electricity on hot days.',
+  hybrid:'Mixed cooling uses air coolers and sprays a little water only on hot days.',
+  dlc:'Liquid cooling brings coolant straight to the hottest chips. The most efficient choice, with almost no water, but it costs more to build.'};
+const SRC_NAMES={potable:'Drinking water',tww:'Recycled water',desal:'Desalinated water'};
+const SRC_INFO={potable:'Drinking water is scarce in Jordan and is not allowed for cooling in this simulation.',
+  tww:'Recycled water is treated wastewater. Jordan treats more than 200 million m³ a year.',
+  desal:'Desalinated sea water is safe for the water supply but costs more.'};
+const SITE_INFO={amman:'Amman is high and mild, with cool nights. Good for free cooling.',aqaba:'Aqaba is on the Red Sea coast and the hottest site here.',risha:'Al-Risha is in the eastern desert: hot, very dry summers and cold winters.'};
+const GROUPS=[
+  {id:'site',title:'Location',color:'#f59e0b',controls:[
+    {type:'select',key:'site',label:'City',options:[['amman','Amman'],['aqaba','Aqaba'],['risha','Al-Risha (east desert)']]},
+    {type:'toggle',key:'heatwave',label:'Very hot summer (+3.5 °C, June to September)'}]},
+  {id:'hall',title:'Data hall',color:'#3b82f6',controls:[
+    {type:'range',key:'itMW',label:'Size (server power)',min:10,max:150,step:5,fmt:v=>v+' MW'}]},
+  {id:'cooling',title:'Cooling',color:'#06b6d4',controls:[
+    {type:'seg',key:'mode',label:'Cooling type',options:[['evap','Cooling towers'],['dry','Air coolers'],['hybrid','Mixed cooling'],['dlc','Liquid cooling']]}]},
+  {id:'water',title:'Water',color:'#0ea5e9',controls:[
+    {type:'seg',key:'waterSource',label:'Water source',three:true,options:[['potable','Drinking'],['tww','Recycled'],['desal','Desalinated']]}]},
+];
+const DEC_NAMES={go:'Approve',cond:'Approve with conditions',nogo:'Reject'};
+const STATUS_NAMES={pass:'PASS',watch:'AT RISK',fail:'FAIL'};
+const CLASS_ORDER=['A','B','C','D','E','F','G']; const ci=c=>CLASS_ORDER.indexOf(c);
+const INFO={
+  power:()=>`Electricity comes from the national grid through the substation. Transformers lower the voltage and batteries (UPS) bridge short power cuts. About ${(R.power/R.it*100).toFixed(1)}% extra energy is lost on the way.`,
+  gen:()=>'Diesel generators start within seconds if the grid fails, fed from the fuel tanks. They rarely run, so they hardly change the ratings, but EU clients expect them.',
+  solar:()=>'Solar panels and wind turbines supply part of the electricity. They lower emissions and the power bill, but they do not change the energy rating, because the rating compares total energy with server energy.',
+  ix:()=>'The meet-me room is where telecom networks connect. Fibre cables link the site to Europe and the Gulf. It uses little power, but EU clients need these fast links.',
+};
+
+let S={...BASE}, limit=DEFAULT_LIMIT, R=null, G=null, scenario=SCENARIOS[0], modified=false, record=null, decTouched=false;
+let openGroup='cooling', leftOpen=false, rightOpen=false, tour=null, popTarget=null;
+
+// helpers
+const $=id=>document.getElementById(id);
+const fmt=(n,d=0)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const listJoin=a=>a.length<=1?a.join(''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),2600);}
+function download(name,mime,text){const b=new Blob([text],{type:mime});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);}
+const cssVar=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// choices panel
+function buildGroups(){
+  $('groups').innerHTML=GROUPS.map(g=>`<div class="acc" id="acc-${g.id}">
+    <button aria-expanded="false" data-acc="${g.id}"><span class="dot" style="background:${g.color}"></span><span class="ttl">${g.title}</span><span class="sum" id="sum-${g.id}"></span><span class="chev">›</span></button>
+    <div class="body">${g.controls.map(ctlHTML).join('')}<div class="info" id="info-${g.id}"></div></div></div>`).join('');
+  const L=$('groups');
+  L.querySelectorAll('[data-acc]').forEach(b=>b.addEventListener('click',()=>setOpenGroup(openGroup===b.dataset.acc?null:b.dataset.acc)));
+  L.querySelectorAll('input[type=range][data-key]').forEach(el=>el.addEventListener('input',()=>setInput(el.dataset.key,parseFloat(el.value))));
+  L.querySelectorAll('input[type=checkbox][data-key]').forEach(el=>el.addEventListener('change',()=>setInput(el.dataset.key,el.checked)));
+  L.querySelectorAll('select[data-key]').forEach(el=>el.addEventListener('change',()=>setInput(el.dataset.key,el.value)));
+  L.querySelectorAll('.seg[data-key] button').forEach(b=>b.addEventListener('click',()=>setInput(b.parentElement.dataset.key,b.dataset.val)));
+}
+function ctlHTML(c){
+  if(c.type==='range') return `<div class="ctl"><div class="row"><label for="in-${c.key}">${c.label}</label><span class="val" id="v-${c.key}"></span></div><input type="range" id="in-${c.key}" data-key="${c.key}" min="${c.min}" max="${c.max}" step="${c.step}"></div>`;
+  if(c.type==='toggle') return `<div class="ctl"><label class="tog"><input type="checkbox" id="in-${c.key}" data-key="${c.key}">${c.label}</label></div>`;
+  if(c.type==='select') return `<div class="ctl"><div class="row"><label for="in-${c.key}">${c.label}</label></div><select class="sel" id="in-${c.key}" data-key="${c.key}">${c.options.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select></div>`;
+  return `<div class="ctl"><div class="row"><span>${c.label}</span></div><div class="seg${c.three?' three':''}" id="seg-${c.key}" data-key="${c.key}" role="group" aria-label="${c.label}">${c.options.map(([v,l])=>`<button data-val="${v}" aria-pressed="false">${l}</button>`).join('')}</div></div>`;
+}
+function setOpenGroup(id){
+  openGroup=id; Engine.select(id);
+  document.querySelectorAll('.acc').forEach(a=>{const on=a.id==='acc-'+id;a.classList.toggle('open',on);a.querySelector('button').setAttribute('aria-expanded',on);});
+  if(id){const el=$('acc-'+id); if(el) setTimeout(()=>el.scrollIntoView({block:'nearest',behavior:'smooth'}),60);}
+}
+function syncControls(){
+  for(const g of GROUPS) for(const c of g.controls){ const v=S[c.key];
+    if(c.type==='range'){$('in-'+c.key).value=v;$('v-'+c.key).textContent=c.fmt(v);}
+    else if(c.type==='toggle') $('in-'+c.key).checked=!!v;
+    else if(c.type==='select') $('in-'+c.key).value=v;
+    else document.querySelectorAll(`.seg[data-key="${c.key}"] button`).forEach(b=>b.setAttribute('aria-pressed',b.dataset.val===String(v))); }
+}
+function setInput(key,val){ S[key]=val; modified=true; syncControls(); update(); }
+
+// checks and decision
+function evaluate(){
+  const checks=[];
+  let st='pass', d;
+  const pOk=ci(R.pueClass)<=ci(TARGET), wOk=ci(R.wueClass)<=ci(TARGET);
+  const bad=R.monthly.filter(m=>ci(classOf(m.pue,PUE_CLASSES))>ci(TARGET)).map(m=>m.m);
+  if(!pOk||!wOk){ st='fail'; d=[!pOk?`Energy class ${R.pueClass} is below the target of class ${TARGET}.`:'', !wOk?`Water class ${R.wueClass} is below the target of class ${TARGET}.`:''].filter(Boolean).join(' '); }
+  else if(bad.length>=2){ st='watch'; d=`The yearly rating passes (energy ${R.pueClass}, water ${R.wueClass}), but ${listJoin(bad)} fall below class ${TARGET}.`; }
+  else d=`Energy class ${R.pueClass} and water class ${R.wueClass}. Both meet the target of class ${TARGET} or better.`;
+  checks.push({id:'eu',title:`EU rating: class ${TARGET} or better`,status:st,detail:d});
+  st='pass'; const pct=Math.round(R.water/Math.max(1,limit)*100);
+  if(S.waterSource==='potable'){ st='fail'; d=`Drinking water may not be used for cooling. This plan would use ${fmt(R.water)} m³ a year.`; }
+  else if(R.water>limit){ st='fail'; d=`${fmt(R.water)} m³ a year is more than the limit of ${fmt(limit)} m³.`; }
+  else if(R.water>0.8*limit){ st='watch'; d=`${fmt(R.water)} m³ a year is ${pct}% of the limit. Very little room for a hot year.`; }
+  else d=`${fmt(R.water)} m³ a year is ${pct}% of the limit, using ${SRC_NAMES[S.waterSource].toLowerCase()}.`;
+  checks.push({id:'water',title:'Jordan water limit',status:st,detail:d});
+  const dec=checks.some(x=>x.status==='fail')?'nogo':checks.some(x=>x.status==='watch')?'cond':'go';
+  const first=checks.find(x=>x.status==='fail')||checks.find(x=>x.status==='watch');
+  return {checks,decision:dec,reason:first?first.detail:'Both checks pass with room to spare.'};
+}
+function recommendations(){
+  const r=[], cs=Object.fromEntries(G.checks.map(x=>[x.id,x.status]));
+  if(S.waterSource==='potable') r.push('Use recycled water instead of drinking water.');
+  if(cs.water!=='pass'||ci(R.wueClass)>ci(TARGET)){
+    if(S.mode==='evap') r.push('Switch from cooling towers to mixed, air or liquid cooling to cut water use.');
+    else if(S.mode==='hybrid') r.push('Switch to air coolers or liquid cooling, which use almost no water.'); }
+  if(cs.eu!=='pass'){
+    if(S.mode!=='dlc') r.push('Try liquid cooling, the most efficient option.');
+    if(S.site==='aqaba') r.push('Try a cooler location, such as Amman or Al-Risha.');
+    if(S.heatwave&&cs.eu==='watch') r.push('Ask for a safety margin in the licence for hot years.'); }
+  if(!r.length) r.push('Approve, and ask the operator to report both ratings every year.');
+  return r.slice(0,3);
+}
+
+// render
+function layerInfo(){ return {site:`${R.climName}, July ${R.monthly[6].db.toFixed(0)} °C`, power:`${(R.power/R.it*100).toFixed(1)}% energy lost`,
+  hall:`${S.itMW} MW of servers`, cooling:`${MODE_NAMES[S.mode]}, +${(R.cool/R.it*100).toFixed(0)}% energy`, water:`${fmt(R.water)} m³ a year`}; }
+function renderGroups(){
+  $('v-itMW').textContent=S.itMW+' MW';
+  $('sum-site').textContent=R.climName+(S.heatwave?', hot year':'');
+  $('sum-hall').textContent=S.itMW+' MW';
+  $('sum-cooling').textContent=MODE_NAMES[S.mode];
+  $('sum-water').textContent=SRC_NAMES[S.waterSource].split(' ')[0];
+  $('info-site').textContent=SITE_INFO[S.site];
+  $('info-hall').textContent=`About ${fmt(R.it/1000)} GWh of server energy a year. ${S.itMW>60?'Above 60 MW the campus has a second hall.':'Above 60 MW the campus gets a second hall.'} Use "Inside hall" to see the racks.`;
+  $('info-cooling').textContent=MODE_INFO[S.mode]+` Here cooling adds ${(R.cool/R.it*100).toFixed(0)}% on top of the server energy.`;
+  $('info-water').textContent=SRC_INFO[S.waterSource];
+}
+function clsBadge(c){return `<span class="cls" style="background:var(--${c})">${c}</span>`;}
+function renderHUD(){
+  $('siteChip').textContent=`${R.climName}, July ${R.monthly[6].db.toFixed(0)} °C`;
+  $('heatChip').hidden=!S.heatwave;
+  $('tryChip').textContent='Try this: '+scenario.tip+(modified?' (changed)':'');
+  document.querySelectorAll('.scard').forEach(b=>b.setAttribute('aria-pressed',b.dataset.sc===scenario.id));
+}
+function renderDock(){
+  $('dock').innerHTML=`
+    <div class="dchip"><span class="k">Energy rating</span><span class="v">${clsBadge(R.pueClass)}</span></div>
+    <div class="dchip"><span class="k">Water rating</span><span class="v">${clsBadge(R.wueClass)}</span></div>
+    <div class="dchip"><span class="k">Water used</span><span class="v">${fmt(R.water)} m³</span><span class="s">= ${fmt(R.people)} people's yearly share</span></div>
+    <div class="dchip"><span class="k">Yearly running cost</span><span class="v">${fmt(R.cost/1e6,1)} M JOD</span></div>
+    <div class="dchip dec ${G.decision}" id="dockDec" role="button" tabindex="0" title="Open the result and decision"><span class="k">Suggested decision</span><span class="v">${DEC_NAMES[G.decision]}</span></div>`;
+  $('dockDec').onclick=()=>openRight(true);
+  $('dockDec').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openRight(true);}};
+}
+function labelHTML(title,val,cls,trueTarget){
+  const rows=CLASS_ORDER.map((c,i)=>`<div class="lrow"><div class="arrow" style="width:${34+i*8}%;background:var(--${c})">${c}</div>${c===cls?`<div class="ptr">${cls}</div>`:''}</div>`).join('');
+  return `<div class="hd"><span>${title}</span><span>${val}</span></div>${rows}<div class="foot">Target: class ${trueTarget} or better</div>`;
+}
+function renderLabels(){
+  $('lblPUE').innerHTML=labelHTML('Energy rating',`ratio ${R.pue.toFixed(2)}`,R.pueClass,TARGET);
+  $('lblWUE').innerHTML=labelHTML('Water rating',`${R.wue.toFixed(2)} L/kWh`,R.wueClass,TARGET);
+  $('lblPUE').title='Energy ratio (PUE) = total energy of the site ÷ energy used by the servers. See the Glossary.';
+  $('lblWUE').title='Water ratio (WUE) = litres of water ÷ kWh used by the servers. See the Glossary.';
+}
+function renderChart(){
+  const W=360,H=180,l=34,r=24,t=10,b=24, iw=W-l-r, ih=H-t-b, table=PUE_CLASSES;
+  const vals=R.monthly.map(m=>m.pue), lo=Math.min(1.1,...vals)-0.03, hi=Math.max(1.45,...vals)+0.05;
+  const y=v=>t+ih-(v-lo)/(hi-lo)*ih; let s='', prev=1.0;
+  for(const [c,lim] of table){const top=Math.min(isFinite(lim)?lim:hi,hi),bot=Math.max(prev,lo);
+    if(top>bot) s+=`<rect x="${l}" y="${y(top)}" width="${iw}" height="${y(bot)-y(top)}" fill="${cssVar('--'+c)}" opacity=".18"/><text x="${W-r+6}" y="${(y(top)+y(bot))/2+4}" style="font-weight:700;fill:${cssVar('--'+c)}">${c}</text>`;
+    prev=lim; if(prev>=hi) break;}
+  const tl=table[ci(TARGET)][1];
+  if(tl<hi&&tl>lo) s+=`<line x1="${l}" x2="${l+iw}" y1="${y(tl)}" y2="${y(tl)}" stroke="${cssVar('--text')}" stroke-dasharray="4 3"/><text x="${l+4}" y="${y(tl)-4}" style="fill:${cssVar('--text')}">target</text>`;
+  const bw=iw/12;
+  vals.forEach((v,i)=>{const c=classOf(v,table),over=ci(c)>ci(TARGET);
+    s+=`<rect x="${l+i*bw+bw*.18}" y="${y(v)}" width="${bw*.64}" height="${Math.max(0,y(lo)-y(v))}" rx="2" fill="${over?cssVar('--warn'):cssVar('--accent2')}"><title>${MONTHS[i]}: ${v.toFixed(2)} (class ${c})</title></rect><text x="${l+i*bw+bw/2}" y="${H-8}" text-anchor="middle">${MONTHS[i][0]}</text>`;});
+  for(let k=0;k<=4;k++){const v=lo+(hi-lo)*k/4;s+=`<text x="${l-4}" y="${y(v)+4}" text-anchor="end">${v.toFixed(2)}</text>`;}
+  $('chart').innerHTML=s;
+}
+function renderChecks(){
+  $('checks').innerHTML=G.checks.map(x=>`<div class="check" id="check-${x.id}"><div class="gh"><span class="gt">${x.title}</span><span class="pill ${x.status}">${STATUS_NAMES[x.status]}</span></div><div class="gd">${esc(x.detail)}</div>${x.id==='water'?`<div class="gc ctl"><div class="row"><label for="limitIn">Water limit set by the committee</label><span class="val">${fmt(limit)} m³</span></div><input type="range" id="limitIn" min="10000" max="200000" step="5000" value="${limit}"></div>`:''}</div>`).join('');
+  $('limitIn').oninput=e=>{limit=+e.target.value; modified=true; update();};
+  $('decisionPill').className='decision '+G.decision; $('decisionPill').innerHTML=`Suggested: ${DEC_NAMES[G.decision]}<small>${esc(G.reason)}</small>`;
+  $('recs').innerHTML=recommendations().map(t=>`<li>${esc(t)}</li>`).join('');
+  if(!decTouched) $('dDec').value=G.decision;
+  $('recorded').innerHTML=record?`<div class="recorded"><b>Recorded:</b> ${esc(DEC_NAMES[record.decision])}. Reason: ${esc(record.reason)}</div>`:'';
+}
+function update(){
+  R=runModel(S); G=evaluate(); Engine.setState(S,R,layerInfo());
+  renderGroups(); renderHUD(); renderDock(); renderLabels(); renderChart(); renderChecks();
+}
+function loadScenario(id,silent){
+  scenario=SCENARIOS.find(s=>s.id===id)||SCENARIOS[0];
+  S={...BASE,...scenario.inputs}; limit=scenario.limit||DEFAULT_LIMIT;
+  modified=false; record=null; decTouched=false; $('dWhy').value=''; $('dErr').textContent='';
+  syncControls(); update();
+  if(!silent) toast('Scenario: '+scenario.name);
+}
+function buildScenarioCards(){
+  $('scenCards').innerHTML=SCENARIOS.map((s,i)=>`<button class="scard" data-sc="${s.id}" aria-pressed="false"><b>${i+1}. ${s.name}</b><span>${s.q}</span></button>`).join('');
+  document.querySelectorAll('.scard').forEach(b=>b.onclick=()=>{endTour(); loadScenario(b.dataset.sc);});
+}
+
+// drawers and view
+function updateInset(){ const wide=window.innerWidth>900; Engine.setInset(wide?((leftOpen?165:0)-(rightOpen?205:0)):0); }
+function openLeft(b){ leftOpen=b; $('leftDrawer').classList.toggle('open',b); $('leftHandle').hidden=b; if(b&&window.innerWidth<=900) openRight(false); updateInset(); }
+function openRight(b){ rightOpen=b; $('rightDrawer').classList.toggle('open',b); $('rightHandle').hidden=b; if(b&&window.innerWidth<=900&&leftOpen){leftOpen=false;$('leftDrawer').classList.remove('open');$('leftHandle').hidden=false;} updateInset(); }
+function syncView(){ $('vXray').setAttribute('aria-pressed',Engine.isXray()); $('vExplode').setAttribute('aria-pressed',Engine.isExploded()); $('vLabels').setAttribute('aria-pressed',Engine.labels());
+  $('vExplode').textContent=Engine.isExploded()?'⤡ Join layers':'⤢ Explode layers'; }
+function setTheme(t){ document.documentElement.dataset.theme=t; try{localStorage.setItem('jdc-theme',t);}catch(e){} Engine.setTheme(t); $('themeBtn').textContent=t==='dark'?'☾':'☀'; if(R) renderChart(); }
+
+// popover (tour and info)
+function placePop(){
+  const pop=$('pop'), arr=pop.querySelector('.arr'), spot=$('spot'), el=popTarget;
+  const vw=window.innerWidth, vh=window.innerHeight, pw=pop.offsetWidth, ph=pop.offsetHeight, m=16;
+  const visible=el&&el.offsetParent!==null&&el.getClientRects().length;
+  if(!visible){ pop.style.left=(vw-pw)/2+'px'; pop.style.top=Math.max(70,(vh-ph)/2)+'px'; arr.style.display='none'; spot.style.display='none'; return; }
+  const r=el.getBoundingClientRect(); const big=r.width>vw*0.55&&r.height>vh*0.45;
+  if(big){ pop.style.left=Math.max(12,r.left+60)+'px'; pop.style.top=Math.max(70,r.top+64)+'px'; arr.style.display='none'; spot.style.display='none'; return; }
+  spot.style.display='block'; spot.style.left=(r.left-6)+'px'; spot.style.top=(r.top-6)+'px'; spot.style.width=(r.width+12)+'px'; spot.style.height=(r.height+12)+'px';
+  const cx=r.left+r.width/2, cy=r.top+r.height/2, cl=(v,a,b)=>Math.max(a,Math.min(b,v)); let x,y,side;
+  if(r.right+m+pw<vw-8){side='right';x=r.right+m;y=cl(cy-ph/2,8,vh-ph-8);}
+  else if(r.left-m-pw>8){side='left';x=r.left-m-pw;y=cl(cy-ph/2,8,vh-ph-8);}
+  else if(r.bottom+m+ph<vh-8){side='bottom';y=r.bottom+m;x=cl(cx-pw/2,8,vw-pw-8);}
+  else {side='top';y=Math.max(8,r.top-m-ph);x=cl(cx-pw/2,8,vw-pw-8);}
+  pop.style.left=x+'px'; pop.style.top=y+'px'; arr.style.display='block';
+  const b='1.5px solid var(--accent)', n='1.5px solid transparent';
+  arr.style.borderTop=arr.style.borderRight=arr.style.borderBottom=arr.style.borderLeft=n;
+  if(side==='right'){arr.style.left='-8.5px';arr.style.top=cl(cy-y-7,12,ph-26)+'px';arr.style.borderLeft=b;arr.style.borderBottom=b;}
+  if(side==='left'){arr.style.left=(pw-6.5)+'px';arr.style.top=cl(cy-y-7,12,ph-26)+'px';arr.style.borderTop=b;arr.style.borderRight=b;}
+  if(side==='bottom'){arr.style.top='-8.5px';arr.style.left=cl(cx-x-7,12,pw-26)+'px';arr.style.borderTop=b;arr.style.borderLeft=b;}
+  if(side==='top'){arr.style.top=(ph-6.5)+'px';arr.style.left=cl(cx-x-7,12,pw-26)+'px';arr.style.borderRight=b;arr.style.borderBottom=b;}
+}
+function showPop(el,{title,html,footer}){
+  popTarget=el; $('popT').innerHTML=title; $('popB').innerHTML=html; $('popF').innerHTML=footer||'';
+  $('pop').classList.add('open'); placePop(); setTimeout(placePop,380);
+  if($('popOk')) $('popOk').onclick=hidePop;
+}
+function hidePop(){ $('pop').classList.remove('open'); $('spot').style.display='none'; popTarget=null; }
+function onHotspot(id,btn){
+  if(GROUPS.some(g=>g.id===id)){ hidePop(); openLeft(true); setOpenGroup(id); return; }
+  Engine.select(id); const h={power:'Power supply',gen:'Backup generators',solar:'Solar and wind',ix:'Meet-me room'}[id];
+  showPop(btn,{title:h,html:INFO[id](),footer:`<span class="meta">This part is fixed in the simulation.</span><button class="btn" id="popOk">OK</button>`});
+}
+// guided tour
+const TOUR=[
+  {scenario:'standard',close:true,target:'#cv',title:'The proposal',body:()=>`A European company wants a ${S.itMW} MW data centre in Amman, with mixed cooling on recycled water. Drag the campus to look around. Click a glowing square to learn about that part.`},
+  {right:true,target:'#lblPUE',title:'Read the ratings',body:()=>`Energy class <b>${R.pueClass}</b>, water class <b>${R.wueClass}</b>. The EU target is class C or better. The chart below shows the hot summer months slipping under class C.`},
+  {scenario:'drinking',right:true,target:'#check-water',title:'Drinking water plan',body:()=>`Cooling towers save electricity, but this plan would use <b>${fmt(R.water)} m³</b> of drinking water a year. That is the yearly share of about <b>${fmt(R.people)} Jordanians</b>. The water check fails.`},
+  {scenario:'nowater',left:'site',target:'#in-site',title:'No-water plan',body:()=>`Air coolers in hot Aqaba use almost no water, but the energy rating drops to class <b>${R.pueClass}</b>. Change the city to Amman and watch the rating.`},
+  {scenario:'crisis',left:'cooling',target:'#seg-mode',title:'Crisis year',body:'A very hot summer, and the water limit is cut to 30,000 m³. Switch the cooling to <b>Liquid cooling</b>. Does the plan pass now?'},
+  {right:true,target:'#decideForm',title:'Your decision',body:'Find a plan that passes both checks. Then record your decision with a reason, and download the report for the committee file.'},
+];
+function startTour(){ tour={i:0}; showStep(); }
+function showStep(){
+  const st=TOUR[tour.i];
+  if(st.scenario) loadScenario(st.scenario,true);
+  if(st.close){openLeft(false);openRight(false);}
+  if(st.left){openRight(false); openLeft(true); setOpenGroup(st.left);}
+  if(st.right){openLeft(false); openRight(true);}
+  hidePop();
+  setTimeout(()=>{ if(!tour) return; const last=tour.i===TOUR.length-1;
+    const tgt=document.querySelector(st.target); if(tgt&&tgt.scrollIntoView&&st.target!=='#cv') tgt.scrollIntoView({block:'center'});
+    showPop(tgt,{title:st.title,html:typeof st.body==='function'?st.body():st.body,
+      footer:`<span class="meta">Step ${tour.i+1} of ${TOUR.length}</span>${tour.i?'<button class="btn" id="tPrev">Back</button>':''}<button class="btn primary" id="tNext">${last?'Finish':'Next'}</button>`});
+    if($('tPrev')) $('tPrev').onclick=()=>{tour.i--;showStep();};
+    $('tNext').onclick=()=>{ if(last){endTour();toast('Tour complete. Keep exploring.');} else {tour.i++;showStep();} };
+  },430);
+}
+function endTour(){ tour=null; hidePop(); }
+
+// files
+function csvMonthly(){
+  const h='month,avg_air_temp_c,server_energy_mwh,cooling_mwh,power_losses_mwh,other_mwh,total_energy_mwh,water_m3,energy_ratio_pue,energy_class,water_ratio_l_per_kwh,water_class';
+  return [h,...R.monthly.map(m=>[m.m,m.db.toFixed(1),m.it.toFixed(0),m.cool.toFixed(0),m.power.toFixed(0),m.other.toFixed(0),m.total.toFixed(0),m.water.toFixed(0),m.pue.toFixed(4),classOf(m.pue,PUE_CLASSES),m.wue.toFixed(4),classOf(m.wue,WUE_CLASSES)].join(',')),
+    ['YEAR','',R.it.toFixed(0),R.cool.toFixed(0),R.power.toFixed(0),R.other.toFixed(0),R.total.toFixed(0),R.water.toFixed(0),R.pue.toFixed(4),R.pueClass,R.wue.toFixed(4),R.wueClass].join(',')].join('\n');
+}
+function planJSON(){
+  return JSON.stringify({app:'Jordan Data Centre Decision Simulator',version:3,saved_at:new Date().toISOString(),scenario:scenario.id,changed:modified,
+    plan:{...S},water_limit_m3:limit,
+    results:{energy_ratio_pue:+R.pue.toFixed(4),energy_class:R.pueClass,water_ratio_l_per_kwh:+R.wue.toFixed(4),water_class:R.wueClass,water_m3:Math.round(R.water),people_equivalent:Math.round(R.people),total_energy_mwh:Math.round(R.total),yearly_cost_jod:Math.round(R.cost)},
+    checks:G.checks.map(c=>({check:c.title,status:STATUS_NAMES[c.status],detail:c.detail})),suggested_decision:DEC_NAMES[G.decision],
+    committee_decision:record?{decision:DEC_NAMES[record.decision],reason:record.reason,time:record.time}:null},null,2);
+}
+function report(){
+  return `DECISION REPORT: Jordan Data Centre Decision Simulator
+Date: ${new Date().toLocaleString('en-GB')}
+Scenario: ${scenario.name}${modified?' (changed by the user)':''}
+This is a simulation. The rating is an estimate of the EU label, not an official label.
+
+1. THE PLAN
+Location: ${R.climName}${S.heatwave?' (very hot summer, +3.5 °C from June to September)':''}
+Size: ${S.itMW} MW of servers
+Cooling: ${MODE_NAMES[S.mode]}
+Water source: ${SRC_NAMES[S.waterSource]}
+Water limit set by the committee: ${fmt(limit)} m³ a year
+
+2. RESULTS FOR ONE YEAR
+Energy rating: class ${R.pueClass} (energy ratio ${R.pue.toFixed(2)})
+Water rating: class ${R.wueClass} (${R.wue.toFixed(2)} litres per kWh of server energy)
+Water used: ${fmt(R.water)} m³, equal to the yearly water share of about ${fmt(R.people)} people in Jordan
+Total energy: ${fmt(R.total/1000)} GWh
+Yearly running cost: ${fmt(R.cost/1e6,1)} million JOD
+
+3. CHECKS
+${G.checks.map(c=>`${c.title}: ${STATUS_NAMES[c.status]}. ${c.detail}`).join('\n')}
+
+4. SUGGESTED DECISION: ${DEC_NAMES[G.decision]}
+How to improve:
+${recommendations().map(r=>'  - '+r).join('\n')}
+
+5. COMMITTEE DECISION: ${record?`${DEC_NAMES[record.decision]}\nReason: ${record.reason}\nRecorded: ${record.time}`:'Not recorded yet.'}
+
+Sources and assumptions: open "Resources" in the simulator.`;
+}
+function doFile(k){
+  if(k==='save'){ download('my_datacentre_plan.json','application/json',planJSON()); toast('Plan saved'); }
+  else if(k==='open'){ const f=$('fileIn'); f.value=''; f.click(); }
+  else if(k==='csv'){ download('datacentre_results.csv','text/csv',csvMonthly()); toast('Results downloaded'); }
+  else { download('datacentre_decision_report.txt','text/plain',report()); toast('Report downloaded'); }
+}
+const ENUMS={site:['amman','aqaba','risha'],mode:['evap','dry','hybrid','dlc'],waterSource:['potable','tww','desal']};
+function applyJSON(obj){
+  if(!obj||typeof obj!=='object') throw new Error('The file is not a saved plan.');
+  const p=obj.plan||obj, S1={...S}; let n=0;
+  for(const k of Object.keys(ENUMS)) if(k in p){ if(!ENUMS[k].includes(p[k])) throw new Error(`"${k}" must be one of: ${ENUMS[k].join(', ')}`); S1[k]=p[k]; n++; }
+  if('itMW' in p){ const x=Number(p.itMW); if(!isFinite(x)) throw new Error('"itMW" must be a number'); S1.itMW=Math.round(clamp(x,10,150)/5)*5; n++; }
+  if('heatwave' in p){ S1.heatwave=!!p.heatwave; n++; }
+  if(!n) throw new Error('No plan settings were found in the file.');
+  let L=limit; if('water_limit_m3' in obj){ const x=Number(obj.water_limit_m3); if(!isFinite(x)||x<0) throw new Error('"water_limit_m3" must be a positive number'); L=Math.round(clamp(x,10000,200000)/5000)*5000; }
+  S=S1; limit=L; return `Plan opened (${n} settings).`;
+}
+function handleFile(file){
+  const rd=new FileReader();
+  rd.onload=()=>{ try{ const msg=applyJSON(JSON.parse(String(rd.result))); modified=true; record=null; syncControls(); update(); toast(msg); }
+    catch(err){ openModal('Could not open the file',`<p class="err">${esc(err.message)}</p><p class="small muted">Nothing was changed. Use "Save my plan" to see the expected format.</p>`); } };
+  rd.readAsText(file);
+}
+
+// modal
+let lastFocus=null;
+function openModal(t,html,wide){ lastFocus=document.activeElement; $('mTitle').textContent=t; $('mBody').innerHTML=html; $('mCard').classList.toggle('wide',!!wide); $('modal').classList.add('open'); setTimeout(()=>$('mClose').focus(),0); }
+function closeModal(){ $('modal').classList.remove('open'); if(lastFocus) lastFocus.focus(); }
+
+// ===================== Resources: sources, data centre types, glossary =====================
+const SOURCES=[
+  {group:'EU energy and water rating (A to G classes)',why:'Used for the class limits, the target of class C, and the note that the label only covers EU data centres.',items:[
+    {t:'off',cite:'European Commission (2026). Delegated Regulation C(2026) 3472 of 21 September 2026, establishing a common Union rating scheme for data centres (Annex I: PUE and WUE classes; Annex II: the label).',url:'https://energy.ec.europa.eu/document/download/b073ba9b-82a8-45cb-b8ba-78dad149e941_en?filename=C_2026_3472_1_EN_ACT_part1_v9.pdf',used:'Energy classes: A up to 1.15, B 1.25, C 1.35, D 1.5, E 1.7, F 1.9, G above 1.9. Water classes: A up to 0.1 L/kWh, B 0.2, C 0.4, D 0.6, E 0.8, F 1.0, G above 1.0.'},
+    {t:'off',cite:'EUR-Lex procedure page for C(2026) 3472.',url:'https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=PI_COM%3AC%282026%293472',used:'Confirms the act supplements Directive (EU) 2023/1791 and amends Regulation (EU) 2024/1364.'},
+    {t:'off',cite:'Commission Delegated Regulation (EU) 2024/1364 of 14 March 2024 on the first phase of the establishment of a common Union rating scheme for data centres.',url:'https://eur-lex.europa.eu/eli/reg_del/2024/1364/oj',used:'Reporting applies to data centres with at least 500 kW of IT power; this is where the energy and water data for the label come from.'},
+    {t:'off',cite:'Directive (EU) 2023/1791 on energy efficiency (recast Energy Efficiency Directive), Article 12.',url:'https://eur-lex.europa.eu/eli/dir/2023/1791/oj',used:'Legal basis for data centre reporting and the rating scheme.'},
+    {t:'oth',cite:'webhosting.today (24 Sep 2026). Summary of C(2026) 3472: first labels due by 15 August 2027.',url:'https://webhosting.today/2026/09/24/brussels-will-grade-data-centres-from-a-to-g-on-power-and-water-first-labels-land-on-august-15-2027/',used:'Secondary summary used to cross-check the class table and the first label date.'},
+  ]},
+  {group:'How energy and water ratios are defined',why:'Used for the two formulas behind the ratings.',items:[
+    {t:'off',cite:'ISO/IEC 30134-2:2026. Data centres key performance indicators, Part 2: Power usage effectiveness (PUE).',url:'https://www.iso.org/standard/85172.html',used:'PUE = total facility energy ÷ IT equipment energy.'},
+    {t:'off',cite:'ISO/IEC 30134-9:2022. Data centres key performance indicators, Part 9: Water usage effectiveness (WUE).',url:'https://www.iso.org/standard/77692.html',used:'WUE = water used (litres) ÷ IT equipment energy (kWh).'},
+  ]},
+  {group:'Jordan water',why:'Used for the 61 m³ per person figure, the "people" comparison, recycled water and the National Water Carrier.',items:[
+    {t:'off',cite:'Ministry of Water and Irrigation, Jordan (2023). National Water Strategy 2023 to 2040, Summary.',url:'https://agwkp.unescwa.org/sites/default/files/2023-10/National_Water_Strategy_2023-2040_Summary-English_-ver2-%20Jordan.pdf',used:'About 61 m³ of renewable fresh water per person in 2021, projected to fall to 35 m³ by 2040. Absolute scarcity line: 500 m³.'},
+    {t:'off',cite:'U.S. International Trade Administration. Jordan Country Commercial Guide: Environment and Water.',url:'https://www.trade.gov/country-commercial-guides/jordan-environment-and-water-sector',used:'Confirms 61 m³ per person, and that 31 treatment plants treat more than 200 million m³ of wastewater a year (basis for the recycled water option).'},
+    {t:'oth',cite:'Smart Water Magazine (Nov 2026). Jordan breaks ground on the Aqaba-Amman Water Desalination and Conveyance Project.',url:'https://smartwatermagazine.com/news/newsroom/jordan-breaks-ground-on-us6-7bn-aqaba-amman-desalination-and-conveyance-project',used:'Ground broken on 18 November 2026; deliveries expected by the end of 2030; about 300 million m³ a year. Basis for the "Crisis year" story.'},
+    {t:'off',cite:'European Investment Bank. Aqaba-Amman Water Desalination and Conveyance project page.',url:'https://eib.org/en/projects/all/20190712',used:'Official project description: Red Sea water desalinated near Aqaba and piped about 420 km to Amman.'},
+    {t:'oth',cite:'International Growth Centre (2025). How can Jordan achieve water tariff reforms despite rising costs?',url:'https://www.theigc.org/blogs/jordan-water-tariff-reforms-costs',used:'The cost of supplying water was about JOD 1.93 per m³ in 2024. Used to judge the water prices assumed below.'},
+  ]},
+  {group:'Climate of the three sites',why:'Used for the monthly temperatures, humidity and the wet-bulb temperature.',items:[
+    {t:'oth',cite:'Encyclopaedia Britannica. Jordan: Climate.',url:'https://www.britannica.com/place/Jordan/Climate',used:'Monthly averages range from 8 to 26 °C in Amman and 16 to 33 °C in Aqaba. The rounded monthly values in the model match these ranges.'},
+    {t:'off',cite:'Ministry of Environment, Jordan. Fourth National Communication on Climate Change to the UNFCCC.',url:'https://unfccc.int/sites/default/files/resource/Hashemite%20Kingdom%20of%20Jordan%204th%20National%20Communication.pdf',used:'Context for rising temperatures and heatwaves. The +3.5 °C "very hot summer" is a stress test, not a forecast.'},
+    {t:'res',cite:'"Wet-Bulb Temperature from Relative Humidity and Air Temperature." Journal of Applied Meteorology and Climatology, 50(11), 2267-2269 (2011). doi:10.1175/JAMC-D-11-0143.1',url:'https://doi.org/10.1175/JAMC-D-11-0143.1',used:'The wet-bulb formula in the Glossary. Valid for 5 to 99% humidity and -20 to 50 °C, mean error under 0.3 °C.'},
+  ]},
+  {group:'Cooling, water use and data centre energy',why:'Used for how each cooling type uses energy and water.',items:[
+    {t:'res',cite:'Siddik, M.A.B., Shehabi, A. and Marston, L. (2021). The environmental footprint of data centers in the United States. Environmental Research Letters 16, 064017.',url:'https://doi.org/10.1088/1748-9326/abfba1',used:'Peer-reviewed evidence that data centres use water directly for cooling, and that energy and water trade off against each other by location.'},
+    {t:'off',cite:'Lawrence Berkeley National Laboratory (2024). 2024 United States Data Center Energy Usage Report, LBNL-2001637.',url:'https://eta-publications.lbl.gov/publications/2024-lbnl-data-center-energy-usage-report',used:'Official report on data centre energy, cooling systems and direct water use, prepared for the U.S. Congress.'},
+    {t:'off',cite:'International Energy Agency (2025). Energy and AI: Energy demand from AI.',url:'https://www.iea.org/reports/energy-and-ai/energy-demand-from-ai',used:'Cooling uses about 7% of electricity in efficient hyperscale sites and over 30% in less efficient enterprise sites. Servers use around 60% on average.'},
+    {t:'oth',cite:'ASHRAE TC 9.9, Thermal Guidelines for Data Processing Environments (summary by Data Center Frontier).',url:'https://datacenterfrontier.com/understanding-data-center-temperature-guidelines/',used:'Recommended server inlet air: 18 to 27 °C. The model uses 24 °C.'},
+    {t:'off',cite:'NIST Chemistry WebBook: Thermophysical properties of water.',url:'https://webbook.nist.gov/chemistry/fluid/',used:'Water needs about 2,430 kJ per kg to evaporate at 30 °C, so 1 kWh (3,600 kJ) of heat evaporates about 1.48 litres.'},
+  ]},
+  {group:'Types of data centre',why:'Used for the "Types of data centre" tab.',items:[
+    {t:'off',cite:'U.S. Congressional Research Service (2025). Data Centers and Their Energy Consumption: Frequently Asked Questions, R48646.',url:'https://www.congress.gov/crs_external_products/R/PDF/R48646/R48646.3.pdf',used:'Definitions of enterprise, colocation and hyperscale data centres.'},
+    {t:'off',cite:'International Energy Agency (2025). Energy and AI (three types: enterprise, colocation and service provider, hyperscale).',url:'https://www.iea.org/reports/energy-and-ai/energy-demand-from-ai',used:'The three main types and the share of energy used for cooling in each.'},
+    {t:'off',cite:'International Energy Agency (2026). Key Questions on Energy and AI: Executive summary.',url:'https://www.iea.org/reports/key-questions-on-energy-and-ai/executive-summary',used:'AI-focused data centres ("AI factories") built specifically for AI.'},
+  ]},
+  {group:'Prices',why:'Used for the yearly running cost.',items:[
+    {t:'oth',cite:'GlobalPetrolPrices.com. Jordan electricity prices (based on EMRC, JEPCO and NEPCO data).',url:'https://www.globalpetrolprices.com/Jordan/electricity_prices/',used:'Business electricity about JOD 0.120 per kWh (June 2025). The model assumes JOD 0.10 per kWh for a large user.'},
+  ]},
+];
+const ASSUMPTIONS=[
+  ['Server share for AI','30% of servers','Assumption. Shown as orange racks inside the hall.'],
+  ['Server inlet air','24 °C','Inside the ASHRAE recommended range of 18 to 27 °C.'],
+  ['Losses in batteries and transformers','UPS 96%, transformers 98.5%','Typical engineering values (assumption).'],
+  ['Lighting and offices','2% of server energy','Assumption.'],
+  ['Water evaporated by cooling towers','1.48 L per kWh of heat','Physics of evaporation (NIST).'],
+  ['Cooling tower water reuse','5 cycles, so blow-down adds 25%','Assumption, see Glossary.'],
+  ['Mixed cooling spray','0.45 L per kWh of heat, only above 24 °C','Assumption.'],
+  ['Liquid cooling','Captures 75% of server heat in warm water (32 °C)','Assumption.'],
+  ['Chiller efficiency','0.38 of the ideal (Carnot) value, between 2 and 8','Assumption, see Glossary.'],
+  ['Hour by hour weather','Spread of 5.5 °C around the monthly mean','Assumption.'],
+  ['Electricity price','JOD 0.10 per kWh','Assumption, below the business tariff of about JOD 0.12.'],
+  ['Water prices','Drinking 1.00, recycled 0.35, desalinated 1.40 JOD per m³','Assumptions; the cost of supply is about JOD 1.93 per m³ (IGC).'],
+  ['Water limit','100,000 m³ a year (Crisis year: 30,000 m³)','Committee choice in this simulation, adjustable.'],
+  ['Very hot summer','+3.5 °C from June to September','Stress test, larger than average projected warming.'],
+  ['Second data hall','Added above 60 MW','Visual only.'],
+];
+const TYPES=[
+  {n:'Enterprise (on-premises)',d:'One organisation builds, owns and runs the data centre for its own IT, for example a bank or a ministry.',e:'Less efficient sites can spend over 30% of their electricity on cooling.',s:'CRS R48646; IEA'},
+  {n:'Colocation (hosting)',d:'A company rents space, power, cooling and security in a building run by a third party, and brings its own servers. Several clients share one site.',e:'This simulation models this type: a European operator hosting EU customers\' data in Jordan.',s:'CRS R48646; IEA',here:true},
+  {n:'Hyperscale (cloud)',d:'Very large sites run by the biggest cloud and internet companies. Industry analysts count at least 5,000 servers and 10,000 square feet of floor space.',e:'Efficient hyperscale sites spend only about 7% of their electricity on cooling.',s:'CRS R48646; IEA'},
+  {n:'AI-focused ("AI factories")',d:'Data centres designed specifically to train and run AI models, packed with accelerated servers such as GPUs.',e:'Accelerated servers account for almost half of the expected growth in data centre electricity use.',s:'IEA Energy and AI; IEA Key Questions'},
+];
+const GLOSSARY=[
+  ['A to G rating','The EU label grades a data centre from A (best) to G (worst), once for energy and once for water. The simulator target is class C or better.'],
+  ['PUE (Power Usage Effectiveness)','The energy ratio behind the energy rating. 1.00 would mean every kWh goes to the servers.','PUE = total energy of the site ÷ energy used by the servers (IT)'],
+  ['WUE (Water Usage Effectiveness)','The water ratio behind the water rating, in litres per kWh.','WUE = water used (L) ÷ energy used by the servers (kWh)'],
+  ['IT, IT load','The servers, storage and network equipment. IT load is their power, in MW.'],
+  ['kW, MW, kWh, MWh, GWh','kW and MW (1,000 kW) measure power at a moment. kWh, MWh (1,000 kWh) and GWh (1,000 MWh) measure energy over time.','Energy (MWh) = power (MW) × hours'],
+  ['m³, L/kWh','One cubic metre is 1,000 litres. L/kWh is litres of water per kWh of server energy.'],
+  ['JOD','Jordanian dinar.'],
+  ['EU, Energy Efficiency Directive','European Union. The recast Energy Efficiency Directive (EU) 2023/1791 requires data centres of 500 kW or more to report energy and water use.'],
+  ['Dry-bulb temperature','Normal air temperature, as on a thermometer. Air coolers depend on it.'],
+  ['Wet-bulb temperature','The lowest temperature air can reach by evaporating water into it. Cooling towers depend on it. The model estimates it from air temperature T (°C) and relative humidity RH (%):','Tw = T × atan(0.151977 × (RH + 8.313659)^0.5) + atan(T + RH) - atan(RH - 1.676331) + 0.00391838 × RH^1.5 × atan(0.023101 × RH) - 4.686035'],
+  ['Relative humidity (RH)','How much water vapour the air holds, compared with the most it could hold, in %.'],
+  ['Free cooling','Cooling with outside air or water when it is cool enough, without running chillers. Cooler sites get more free cooling hours.'],
+  ['Chiller and COP','A chiller is a large refrigeration machine. COP (coefficient of performance) is heat removed per unit of electricity. It falls as the outside air gets hotter.','COP = 0.38 × (T_cold + 273.15) ÷ (T_hot - T_cold), kept between 2 and 8'],
+  ['Cooling towers','Evaporate water to remove heat. Low energy, high water use.','Water (L) = heat (kWh) × 1.48 × (1 + 1 ÷ (cycles - 1))'],
+  ['Cycles of concentration and blow-down','Towers drain some water (blow-down) to stop minerals building up. With 5 cycles, blow-down adds 1 ÷ (5 - 1) = 25% to the water evaporated.'],
+  ['Air coolers (dry coolers)','Fans blow outside air over closed pipes of coolant. Almost no water, but more electricity on hot days.'],
+  ['Mixed cooling (hybrid)','Air coolers with wetted pads. They spray water only when the air is above 24 °C.'],
+  ['Liquid cooling (direct to chip)','Coolant flows through plates on the processors. Warm coolant (about 32 °C) can be cooled by outside air most of the year.'],
+  ['CDU (coolant distribution unit)','The pump and heat exchanger unit that feeds liquid cooling to the racks.'],
+  ['Recycled water (treated wastewater)','Wastewater cleaned in a treatment plant. Suitable for cooling, and it saves drinking water.'],
+  ['Desalinated water','Sea water with the salt removed, for example by the planned National Water Carrier from Aqaba.'],
+  ['National Water Carrier','The Aqaba-Amman Water Desalination and Conveyance Project: about 300 million m³ a year, deliveries expected by the end of 2030.'],
+  ['Water limit','The most water a year the committee allows the site to use, in m³. You can change it in the water check.'],
+  ['People equivalent','How many people in Jordan would normally get the same yearly water.','People = water used (m³) ÷ 61 m³ per person'],
+  ['Yearly running cost','Electricity plus water for one year. It does not include the cost of building the site.','Cost (JOD) = total energy (kWh) × 0.10 + water (m³) × water price'],
+  ['UPS (uninterruptible power supply)','Batteries and power electronics that keep servers running during short power cuts. Some energy is lost in them.'],
+  ['Transformer','Lowers the grid voltage to the voltage used on site.'],
+  ['Backup generators','Diesel generators that take over if the grid fails for longer.'],
+  ['Meet-me room','The room where telecom networks connect to the data centre.'],
+  ['Rack','A standard cabinet that holds servers. Orange racks in "Inside hall" are AI servers, which run hotter.'],
+  ['Hot aisle containment','Panels that close the space behind the racks so hot exhaust air does not mix with cool air.'],
+  ['Colocation, hyperscale, enterprise','Types of data centre. See the "Types of data centre" tab.'],
+];
+function openResources(tab='sources'){
+  const src=SOURCES.map(g=>`<div class="rgroup"><h4>${g.group}</h4><p class="why">${g.why}</p>${g.items.map(s=>`<div class="src"><span class="tag ${s.t}">${{off:'OFFICIAL',res:'RESEARCH',oth:'OTHER'}[s.t]}</span>${esc(s.cite)}<br><a href="${s.url}" target="_blank" rel="noopener">${esc(s.url)}</a><div class="used"><b>Used for:</b> ${esc(s.used)}</div></div>`).join('')}</div>`).join('');
+  const asm=`<div class="rgroup"><h4>Assumptions in the model</h4><p class="why">Values without a direct source. They are reasonable for teaching, but they are not design values.</p><table><tr><th>Item</th><th>Value used</th><th>Basis</th></tr>${ASSUMPTIONS.map(a=>`<tr><td>${a[0]}</td><td>${a[1]}</td><td class="small">${a[2]}</td></tr>`).join('')}</table></div>`;
+  const types=`<p class="small muted" style="margin-top:12px">The International Energy Agency groups data centres into three main types, and tracks a fast-growing fourth group built for AI. Sources are in the "Types of data centre" group on the Sources tab.</p><div class="types">${TYPES.map(t=>`<div class="type${t.here?' here':''}"><h4>${t.n}${t.here?' <span class="tag res">THIS SIMULATION</span>':''}</h4><p>${esc(t.d)}</p><p class="muted small">${esc(t.e)}</p><p class="small muted">Source: ${t.s}</p></div>`).join('')}</div>`;
+  const gl=`<input class="search" id="glSearch" type="search" placeholder="Search the glossary, for example PUE"><dl class="gl" id="glList">${GLOSSARY.map(g=>`<div class="gi" data-k="${esc((g[0]+' '+g[1]).toLowerCase())}"><dt>${esc(g[0])}</dt><dd>${esc(g[1])}${g[2]?`<div class="formula">${esc(g[2])}</div>`:''}</dd></div>`).join('')}</dl>`;
+  openModal('Resources',`<div class="rtabs" role="tablist"><button role="tab" data-rt="sources">Sources</button><button role="tab" data-rt="types">Types of data centre</button><button role="tab" data-rt="glossary">Glossary and formulas</button></div>
+    <div class="rbody"><section class="rpane" id="rp-sources"><p class="small muted" style="margin-top:12px"><span class="tag off">OFFICIAL</span>law, government or standards body <span class="tag res">RESEARCH</span>peer-reviewed paper <span class="tag oth">OTHER</span>reputable secondary source</p>${src}${asm}</section>
+    <section class="rpane" id="rp-types">${types}</section><section class="rpane" id="rp-glossary">${gl}</section></div>`,true);
+  const setTab=t=>{ document.querySelectorAll('.rtabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.rt===t)); document.querySelectorAll('.rpane').forEach(p=>p.classList.toggle('on',p.id==='rp-'+t)); };
+  document.querySelectorAll('.rtabs button').forEach(b=>b.onclick=()=>setTab(b.dataset.rt)); setTab(tab);
+  $('glSearch').oninput=e=>{ const q=e.target.value.trim().toLowerCase(); document.querySelectorAll('#glList .gi').forEach(d=>d.style.display=!q||d.dataset.k.includes(q)?'':'none'); };
+}
+
+// ===================== init =====================
+function init(){
+  let t='dark'; try{t=localStorage.getItem('jdc-theme')||'dark';}catch(e){}
+  document.documentElement.dataset.theme=t; $('themeBtn').textContent=t==='dark'?'☾':'☀';
+  buildGroups(); buildScenarioCards();
+  Engine.init($('cv'),$('hsLayer'),onHotspot); Engine.setTheme(t);
+  if(window.innerWidth<700) Engine.setLabels(false);
+  loadScenario('standard',true); setOpenGroup('cooling'); syncView();
+  $('resetBtn').onclick=()=>{loadScenario(scenario.id,true);toast('Scenario reset');};
+  $('themeBtn').onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
+  $('tourBtn').onclick=()=>{$('welcome').classList.remove('open');startTour();};
+  $('resBtn').onclick=()=>openResources(); $('footRes').onclick=()=>openResources();
+  const menu=$('filesMenu');
+  $('filesBtn').onclick=e=>{e.stopPropagation();const o=menu.classList.toggle('open');$('filesBtn').setAttribute('aria-expanded',o);};
+  menu.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{menu.classList.remove('open');doFile(b.dataset.act);});
+  document.addEventListener('click',e=>{ if(!menu.contains(e.target)&&e.target!==$('filesBtn')) menu.classList.remove('open'); });
+  $('fileIn').onchange=e=>{const f=e.target.files[0]; if(f) handleFile(f);};
+  $('leftHandle').onclick=()=>openLeft(true); $('leftClose').onclick=()=>openLeft(false);
+  $('rightHandle').onclick=()=>openRight(true); $('rightClose').onclick=()=>openRight(false);
+  $('dDec').onchange=()=>{decTouched=true;};
+  $('dSave').onclick=()=>{ const why=$('dWhy').value.trim(); if(why.length<5){$('dErr').textContent='Please write a reason or conditions (at least 5 characters).';return;}
+    $('dErr').textContent=''; record={decision:$('dDec').value,reason:why,time:new Date().toLocaleString('en-GB')}; renderChecks(); toast('Decision recorded. Now download the report.'); };
+  $('dReport').onclick=()=>doFile('report');
+  $('vRotL').onclick=()=>Engine.rotate(45); $('vRotR').onclick=()=>Engine.rotate(-45);
+  $('vIn').onclick=()=>Engine.zoom(0.85); $('vOut').onclick=()=>Engine.zoom(1.18); $('vHome').onclick=()=>Engine.resetView();
+  $('vXray').onclick=()=>{Engine.setXray(!Engine.isXray());syncView();};
+  $('vExplode').onclick=()=>{Engine.setExplode(!Engine.isExploded());syncView();};
+  $('vLabels').onclick=()=>{Engine.setLabels(!Engine.labels());syncView();};
+  $('wTour').onclick=()=>{$('welcome').classList.remove('open');startTour();};
+  $('wExplore').onclick=()=>{$('welcome').classList.remove('open');openRight(window.innerWidth>900);};
+  $('wRes').onclick=()=>openResources('sources');
+  $('popX').onclick=()=>{ if(tour) endTour(); else hidePop(); };
+  $('mClose').onclick=closeModal; $('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();});
+  window.addEventListener('resize',()=>{updateInset(); if(popTarget||$('pop').classList.contains('open')) placePop();});
+  document.addEventListener('keydown',e=>{ if(e.key!=='Escape') return;
+    if($('modal').classList.contains('open')) closeModal(); else if(tour) endTour(); else if($('pop').classList.contains('open')) hidePop();
+    else if($('welcome').classList.contains('open')) $('welcome').classList.remove('open'); menu.classList.remove('open'); });
+  $('welcome').classList.add('open');
+}
+init();
+</script>
+</body>
+</html>
